@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_create_room"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="project.blackjack.CreateRoomActivity">
+
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+
+        <EditText
+            android:id="@+id/field_room_name"
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="start"
+            android:hint="@string/hint_room"
+            android:inputType="textEmailAddress"
+            android:maxLines="1"
+
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginStart="17dp"
+            android:layout_marginTop="95dp" />
+
+        <Button
+            android:id="@+id/button_create_room"
+            android:layout_width="150dp"
+            android:theme="@style/ThemeOverlay.MyDarkButton"
+            android:layout_height="wrap_content"
+            android:text="@string/create"
+            android:layout_marginTop="14dp"
+            android:layout_below="@+id/field_room_name"
+            android:layout_alignStart="@+id/field_room_name" />
+
+    </RelativeLayout>
+
+</android.support.constraint.ConstraintLayout>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="project.blackjack.MainActivity">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:background="@mipmap/blackjack"
+        android:layout_height="match_parent">
+
+
+        <Button
+        android:id="@+id/button_create_room"
+        android:layout_width="150dp"
+        android:theme="@style/ThemeOverlay.MyDarkButton"
+        android:layout_height="wrap_content"
+        android:text="@string/create_room"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginStart="27dp"
+            android:layout_marginTop="66dp" />
+
+        <Button
+            android:id="@+id/button_log_out"
+            android:layout_width="100dp"
+            android:theme="@style/ThemeOverlay.MyDarkButton"
+            android:layout_height="wrap_content"
+            android:text="@string/menu_logout"
+
+            android:layout_marginBottom="13dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignStart="@+id/button_create_room" />
+
+        <Button
+            android:id="@+id/button_join_room"
+            android:layout_width="150dp"
+            android:theme="@style/ThemeOverlay.MyDarkButton"
+            android:layout_height="wrap_content"
+            android:text="@string/join_room"
+            android:layout_alignBaseline="@+id/button_create_room"
+            android:layout_alignBottom="@+id/button_create_room"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="27dp" />
+
+    </RelativeLayout>
+</android.support.design.widget.CoordinatorLayout>
+
+
+

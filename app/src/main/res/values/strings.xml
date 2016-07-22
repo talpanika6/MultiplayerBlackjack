@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Blackjack</string>
+    <string name="title_activity_base">BaseActivity</string>
+    <string name="title_create_room_activity">Create Room</string>
+    <string name="title_waiting_room_activity">Waiting Room</string>
+    <string name="title_join_room_activity">Join A Room</string>
+    <string name="select_room">Select A Room</string>
+    <string name="action_settings">Settings</string>
+    <string name="menu_login">Log in</string>
+    <string name="menu_logout">Log out</string>
+    <string name="login_label">Log In</string>
+    <string name="email_label">Email</string>
+    <string name="password_label">Password</string>
+    <string name="send_text">Send</string>
+    <string name="title_welcome">Signed in as </string>
+    <string name="sign_up">Sign Up</string>
+    <string name="hint_password">Password</string>
+    <string name="hint_email">Email</string>
+    <string name="hint_room">Room Name</string>
+    <string name="sign_in">Sign In</string>
+    <string name="create_room">Create Room</string>
+    <string name="create">Create</string>
+    <string name="join_room">Join Room</string>
+    <string name="join">Join</string>
+    <string name="waiting_player">Waiting For Players to Connect</string>
+</resources>
