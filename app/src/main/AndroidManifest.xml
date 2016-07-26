@@ -33,10 +33,14 @@
             android:label="@string/title_join_room_activity"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme" />
-        <activity android:name=".WaitingRoomActivity"
+        <activity
+            android:name=".WaitingRoomActivity"
             android:label="@string/title_waiting_room_activity"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme"/>
+            android:theme="@style/AppTheme" />
+        <activity android:name=".GameActivity"
+            android:screenOrientation="landscape"
+            android:theme="@style/GameTheme"/>
     </application>
 
 </manifest>

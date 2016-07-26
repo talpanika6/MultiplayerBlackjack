@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.NumberPicker;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -39,10 +40,14 @@ public class WaitingRoomActivity extends BaseActivity {
     private RecyclerView mPlayersRecycler;
     private DatabaseReference mDatabase;
     private PlayerAdapter mAdapter;
+    private static ArrayList<RoomPlayers> Players;
     private String mRoomNameKey;
     private TextView mRommField;
+    private Button createGameButton;
     private ProgressBar mProgressBar;
+
     public static final String EXTRA_ROOM_KEY = "room_key";
+    public static final String EXTRA_PLAYER_KEY = "players_key";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,13 +62,24 @@ public class WaitingRoomActivity extends BaseActivity {
 
         //firebase
         mDatabase = FirebaseDatabase.getInstance().getReference().child("/rooms-players/").child(mRoomNameKey);
+        Players=new ArrayList<>();
 
         //views
         mRommField=(TextView )findViewById(R.id.room_name);
         mPlayersRecycler = (RecyclerView) findViewById(R.id.recycler_players);
         mProgressBar=(ProgressBar)findViewById(R.id.waiting_progress);
+        createGameButton=(Button)findViewById(R.id.button_create_game);
         mRommField.setText("Room: "+mRoomNameKey);
 
+
+        createGameButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getApplicationContext(),GameActivity.class);
+                intent.putExtra(EXTRA_PLAYER_KEY, Players);
+                startActivity(intent);
+            }
+        });
 
         mProgressBar.setVisibility(View.VISIBLE);
         mPlayersRecycler.setLayoutManager(new LinearLayoutManager(this));
@@ -149,6 +165,7 @@ public class WaitingRoomActivity extends BaseActivity {
                                     } else {
                                         // Update RecyclerView
 
+                                        Players.add(object);
                                         mPlayers.add(object.player);
                                         notifyItemInserted(mPlayers.size() - 1);
                                     }
@@ -187,6 +204,7 @@ public class WaitingRoomActivity extends BaseActivity {
                     if (playerIndex > -1) {
                         // Remove data from the list
                         mPlayers.remove(playerIndex);
+                        Players.remove(playerIndex);
 
                         // Update the RecyclerView
                         notifyItemRemoved(playerIndex);

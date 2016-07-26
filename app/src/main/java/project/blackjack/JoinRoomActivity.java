@@ -266,8 +266,9 @@ public class JoinRoomActivity extends BaseActivity  {
 
     private void writePlayerToRooms(String userId, String username,String roomName,long turn)
     {
+        double chips=1000;
         //String key = mDatabase.child("room-players").child(roomName).push().getKey();
-        RoomPlayers roomPlayer=new RoomPlayers(userId,username,++turn);
+        RoomPlayers roomPlayer=new RoomPlayers(userId,username,chips,++turn);
 
         Map<String, Object> roomPlayersValues = roomPlayer.toMap();
         Map<String, Object> childUpdates = new HashMap<>();
