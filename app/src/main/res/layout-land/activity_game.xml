@@ -10,7 +10,7 @@
     tools:context="project.blackjack.GameActivity">
 
     <RelativeLayout
-        android:layout_width="300dp"
+        android:layout_width="match_parent"
         android:background="@drawable/bottom_bar"
         android:layout_alignParentBottom="true"
         android:layout_alignParentEnd="true"
@@ -18,23 +18,31 @@
         android:gravity="bottom"
         android:layout_height="75dp"
       >
-        <GridLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:tools="http://schemas.android.com/tools"
-            android:id="@+id/GridLayout1"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:columnCount="2"
-            android:rowCount="1"
-            android:orientation="horizontal"
-           >
+       <LinearLayout
+           android:layout_width="match_parent"
+           android:layout_height="match_parent"
+           android:orientation="horizontal">
+            <LinearLayout
+                android:layout_width="200dp"
+                android:layout_marginStart="16dp"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+            <android.support.v7.widget.AppCompatTextView
+                android:id="@+id/turn_text"
+                android:layout_width="wrap_content"
+                android:text="@string/turn"
+                android:textColor="@color/colorAccent"
+                android:layout_column="0"
+                android:layout_row="0"
+                android:textSize="18dp"
+                android:layout_height="wrap_content"
+                />
 
             <android.support.v7.widget.AppCompatTextView
                 android:id="@+id/bet_text"
                 android:layout_width="wrap_content"
                 android:text="@string/bet"
                 android:textColor="#FFFFFF"
-                android:layout_column="0"
-                android:layout_row="0"
                 android:textSize="18dp"
                 android:layout_height="wrap_content"
                 />
@@ -43,13 +51,120 @@
                 android:layout_width="wrap_content"
                 android:text="@string/balance"
                 android:textColor="#FFFFFF"
-                android:layout_column="1"
-                android:layout_row="0"
                 android:textSize="18dp"
                 android:layout_height="wrap_content"
                 />
 
-        </GridLayout>
+            </LinearLayout>
+    <RelativeLayout
+        android:layout_width="380dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        >
+        <RelativeLayout
+            android:id="@+id/bet_layout"
+            android:layout_width="match_parent"
+            android:visibility="visible"
+            android:layout_height="wrap_content">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+                <EditText
+                    android:layout_width="65dp"
+                    android:layout_height="36dp"
+                    android:textSize="16dp"
+                    android:hint="@string/chips"
+                    />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="64dp"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:layout_width="35dp"
+                        android:layout_height="35dp"
+                        android:background="@android:color/transparent"
+                        android:src="@mipmap/ic_remove_white_18dp"/>
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@mipmap/chip"/>
+
+                       <ImageView
+                           android:layout_width="25dp"
+                           android:layout_height="35dp"
+                           android:src="@mipmap/ic_add_white_18dp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+
+
+        <LinearLayout
+
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="end|bottom"
+            android:orientation="horizontal">
+
+
+            <Button
+                android:id="@+id/button_bet"
+                android:layout_width="70dp"
+                android:theme="@style/ThemeOverlay.MyDarkButton"
+                android:layout_height="40dp"
+                android:text="@string/bet" />
+
+
+            <Button
+                android:id="@+id/button_clear"
+                android:layout_width="70dp"
+                android:theme="@style/ThemeOverlay.MyDarkButton"
+                android:layout_height="40dp"
+                android:text="@string/clear" />
+        </LinearLayout>
+        </RelativeLayout>
+        <RelativeLayout
+            android:id="@+id/game_layout"
+            android:visibility="invisible"
+            android:layout_width="380dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            >
+
+
+            <LinearLayout
+
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="end|bottom"
+                android:orientation="horizontal">
+
+
+                <Button
+                    android:id="@+id/button_hit"
+                    android:layout_width="70dp"
+                    android:theme="@style/ThemeOverlay.MyDarkButton"
+                    android:layout_height="40dp"
+                    android:text="@string/hit" />
+
+
+                <Button
+                    android:id="@+id/button_stay"
+                    android:layout_width="70dp"
+                    android:theme="@style/ThemeOverlay.MyDarkButton"
+                    android:layout_height="40dp"
+                    android:text="@string/stay" />
+            </LinearLayout>
+
+        </RelativeLayout>
+        </RelativeLayout>
+
+
+
+       </LinearLayout>
 
 
 
