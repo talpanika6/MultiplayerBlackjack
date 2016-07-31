@@ -109,8 +109,8 @@ public class CreateRoomActivity extends BaseActivity implements View.OnClickList
         //create /rooms-players/room/uid/user details
         //String key = mDatabase.child("rooms").push().getKey();
         Room room=new Room(userId,username,Room.State.Opened);
-        double chips=1000;
-        RoomPlayers roomPlayer=new RoomPlayers(userId,username,chips,1);
+
+        RoomPlayers roomPlayer=new RoomPlayers(userId,username,1);
 
         Map<String, Object> roomValues = room.toMap();
         Map<String, Object> roomPlayersValues = roomPlayer.toMap();

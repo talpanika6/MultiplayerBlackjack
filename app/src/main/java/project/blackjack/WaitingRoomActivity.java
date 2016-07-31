@@ -32,15 +32,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import project.blackjack.Models.Player;
 import project.blackjack.Models.RoomPlayers;
 import project.blackjack.Models.User;
 
 public class WaitingRoomActivity extends BaseActivity {
 
     private RecyclerView mPlayersRecycler;
-    private DatabaseReference mDatabase;
+    private DatabaseReference mDatabase,mDatabaseGame;
     private PlayerAdapter mAdapter;
-    private static ArrayList<RoomPlayers> Players;
+    private static ArrayList<RoomPlayers> RoomPlayers;
+    private  ArrayList<Player> Players;
     private String mRoomNameKey;
     private TextView mRommField;
     private Button createGameButton;
@@ -62,6 +64,8 @@ public class WaitingRoomActivity extends BaseActivity {
 
         //firebase
         mDatabase = FirebaseDatabase.getInstance().getReference().child("/rooms-players/").child(mRoomNameKey);
+        mDatabaseGame=FirebaseDatabase.getInstance().getReference();
+        RoomPlayers=new ArrayList<>();
         Players=new ArrayList<>();
 
         //views
@@ -75,9 +79,9 @@ public class WaitingRoomActivity extends BaseActivity {
         createGameButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(getApplicationContext(),GameActivity.class);
-                intent.putExtra(EXTRA_PLAYER_KEY, Players);
-                startActivity(intent);
+                //Todo add deck entity
+                createGameDB();
+                startGameActivity();
             }
         });
 
@@ -85,6 +89,31 @@ public class WaitingRoomActivity extends BaseActivity {
         mPlayersRecycler.setLayoutManager(new LinearLayoutManager(this));
 
     }
+
+    private void createGameDB()
+    {
+        double chips=1000;
+        for(RoomPlayers players :RoomPlayers) {
+            Player player = new Player(players.uid, players.player,players.turn, chips);
+            Players.add(player);
+
+            Map<String, Object> PlayersValues = player.toMap();
+            Map<String, Object> childUpdates = new HashMap<>();
+
+            childUpdates.put("/Game/" + mRoomNameKey + "/Players/" + players.uid, PlayersValues);
+            mDatabaseGame.updateChildren(childUpdates);
+        }
+
+    }
+
+    private void startGameActivity()
+    {
+        Intent intent = new Intent(getApplicationContext(),GameActivity.class);
+        intent.putExtra(EXTRA_PLAYER_KEY, Players);
+        intent.putExtra(EXTRA_ROOM_KEY,mRoomNameKey);
+        startActivity(intent);
+    }
+
     @Override
     public void onStart() {
         super.onStart();
@@ -165,7 +194,7 @@ public class WaitingRoomActivity extends BaseActivity {
                                     } else {
                                         // Update RecyclerView
 
-                                        Players.add(object);
+                                        RoomPlayers.add(object);
                                         mPlayers.add(object.player);
                                         notifyItemInserted(mPlayers.size() - 1);
                                     }
@@ -204,7 +233,7 @@ public class WaitingRoomActivity extends BaseActivity {
                     if (playerIndex > -1) {
                         // Remove data from the list
                         mPlayers.remove(playerIndex);
-                        Players.remove(playerIndex);
+                        RoomPlayers.remove(playerIndex);
 
                         // Update the RecyclerView
                         notifyItemRemoved(playerIndex);
