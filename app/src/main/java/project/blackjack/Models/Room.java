@@ -15,9 +15,7 @@ public class Room {
 
     public String uid;
     public String owner;
-   // public String roomName;
     public String state;
-    public HashMap<String,String> Players;
 
     public Room() {}
 
@@ -27,7 +25,6 @@ public class Room {
     {
         this.uid=uid;
         this.owner=owner;
-     //   this.roomName=roomName;
         this.state=stateToString(state);
     }
 
@@ -64,7 +61,7 @@ public class Room {
         HashMap<String, Object> result = new HashMap<>();
         result.put("uid", uid);
         result.put("owner", owner);
-       // result.put("name",roomName);
+
         result.put("state",state);
 
         return result;

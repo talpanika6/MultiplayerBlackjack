@@ -12,23 +12,13 @@ import java.util.Map;
  * Created by Tal on 31-Jul-16.
  */
 
-public class Player  implements Parcelable{
+public class Player  {
 
     public String uid;
     public String name;
     public long turn;
     public double bet;
     public double chips;
-
-
-    private Player(Parcel in) {
-        this.uid = in.readString();
-        this.name = in.readString();
-        this.turn = in.readLong();
-        this.bet=in.readDouble();
-        this.chips=in.readDouble();
-
-    }
 
     public Player() {}
 
@@ -56,30 +46,4 @@ public class Player  implements Parcelable{
         return result;
     }
 
-    @Exclude
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-    @Exclude
-    @Override
-    public void writeToParcel(Parcel parcel, int i) {
-        parcel.writeString(uid);
-        parcel.writeString(name);
-        parcel.writeLong(turn);
-        parcel.writeDouble(bet);
-        parcel.writeDouble(chips);
-
-    }
-    @Exclude
-    public static final Parcelable.Creator<Player> CREATOR = new Parcelable.Creator<Player>() {
-        public Player createFromParcel(Parcel in) {
-            return new Player(in);
-        }
-
-        public Player[] newArray(int size) {
-            return new Player[size];
-
-        }
-    };
 }

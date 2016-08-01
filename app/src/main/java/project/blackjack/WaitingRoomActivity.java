@@ -33,13 +33,14 @@ import java.util.List;
 import java.util.Map;
 
 import project.blackjack.Models.Player;
+import project.blackjack.Models.Room;
 import project.blackjack.Models.RoomPlayers;
 import project.blackjack.Models.User;
 
 public class WaitingRoomActivity extends BaseActivity {
 
     private RecyclerView mPlayersRecycler;
-    private DatabaseReference mDatabase,mDatabaseGame;
+    private DatabaseReference mDatabase,mDatabaseGame,mDatabaseRoom;
     private PlayerAdapter mAdapter;
     private static ArrayList<RoomPlayers> RoomPlayers;
     private  ArrayList<Player> Players;
@@ -47,9 +48,12 @@ public class WaitingRoomActivity extends BaseActivity {
     private TextView mRommField;
     private Button createGameButton;
     private ProgressBar mProgressBar;
+    private String playerOwner;
+    private ChildEventListener stateEventListener;
 
+    private static final String TAG = "WaitingRoomActivity";
     public static final String EXTRA_ROOM_KEY = "room_key";
-    public static final String EXTRA_PLAYER_KEY = "players_key";
+    public static final String EXTRA_PLAYER_NUMBER_KEY = "players__number_key";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +69,7 @@ public class WaitingRoomActivity extends BaseActivity {
         //firebase
         mDatabase = FirebaseDatabase.getInstance().getReference().child("/rooms-players/").child(mRoomNameKey);
         mDatabaseGame=FirebaseDatabase.getInstance().getReference();
+        mDatabaseRoom=FirebaseDatabase.getInstance().getReference().child("/rooms/").child("/"+mRoomNameKey+"/");
         RoomPlayers=new ArrayList<>();
         Players=new ArrayList<>();
 
@@ -75,13 +80,14 @@ public class WaitingRoomActivity extends BaseActivity {
         createGameButton=(Button)findViewById(R.id.button_create_game);
         mRommField.setText("Room: "+mRoomNameKey);
 
+        setOwnerView();
 
         createGameButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 //Todo add deck entity
                 createGameDB();
-                startGameActivity();
+                startGameActivity(RoomPlayers.size());
             }
         });
 
@@ -104,20 +110,24 @@ public class WaitingRoomActivity extends BaseActivity {
             Map<String, Object> PlayersValues = player.toMap();
             Map<String, Object> childUpdates = new HashMap<>();
 
-            childUpdates.put("/Game/" + mRoomNameKey + "/Players/" + players.uid, PlayersValues);
+            childUpdates.put("/game/" + mRoomNameKey + "/players/" + players.uid, PlayersValues);
             mDatabaseGame.updateChildren(childUpdates);
         }
-
+        ///
+        //change state to created
+        mDatabaseRoom.child("state").setValue("Created");
         //dismiss
         hideProgressDialog();
     }
 
-    private void startGameActivity()
+    private void startGameActivity(int numberOfPlayers)
     {
+        //Toast.makeText(getApplicationContext(), "Players "+RoomPlayers.size(), Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(getApplicationContext(),GameActivity.class);
-        intent.putExtra(EXTRA_PLAYER_KEY, Players);
+        intent.putExtra(EXTRA_PLAYER_NUMBER_KEY, numberOfPlayers);
         intent.putExtra(EXTRA_ROOM_KEY,mRoomNameKey);
         startActivity(intent);
+        finish();
     }
 
     @Override
@@ -130,6 +140,8 @@ public class WaitingRoomActivity extends BaseActivity {
     public void onStop() {
         super.onStop();
 
+        if (stateEventListener!=null)
+            mDatabaseRoom.removeEventListener(stateEventListener);
         // Clean up  listener
         mAdapter.cleanupListener();
     }
@@ -142,6 +154,101 @@ public class WaitingRoomActivity extends BaseActivity {
         mPlayersRecycler.setAdapter(mAdapter);
 
     }
+
+    private void setOwnerView() {
+
+
+        mDatabaseGame.child("rooms").child(mRoomNameKey).addValueEventListener(
+                new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        // Get user value
+                        Room object = dataSnapshot.getValue(Room.class);
+
+                        // [START_EXCLUDE]
+                        if (object == null) {
+                            // player is null, error out
+                            Log.e(TAG, "room  is unexpectedly null");
+                            Toast.makeText(getApplicationContext(),
+                                    "Error: could not fetch room.",
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+
+                            playerOwner=object.uid;
+                          if(playerOwner.equals(getUid()))
+
+                            createGameButton.setVisibility(View.VISIBLE);
+                            else {
+                              createGameButton.setVisibility(View.INVISIBLE);
+                              setRoomStateEventListener();
+                          }
+                        }
+                        // [END_EXCLUDE]
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+                        Log.w(TAG, "getPlayer:onCancelled", databaseError.toException());
+                    }
+                });
+        // [END single_value_read]
+
+
+    }
+
+    private void setRoomStateEventListener()
+    {
+
+         stateEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
+
+
+                String key = dataSnapshot.getKey();
+
+
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+                Object room = dataSnapshot.getValue();
+
+                if (room.equals("Created"))
+                {
+
+                    startGameActivity(RoomPlayers.size());
+                }
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+
+                // A player has removed,
+
+
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load players.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabaseRoom.addChildEventListener(stateEventListener);
+    }
+
     private static class PlayerViewHolder extends RecyclerView.ViewHolder {
 
         public TextView playerView;
@@ -231,7 +338,7 @@ public class WaitingRoomActivity extends BaseActivity {
                 public void onChildRemoved(DataSnapshot dataSnapshot) {
                     Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
 
-                    // A player has roomved,
+                    // A player has removed,
                     String playerKey = dataSnapshot.getKey();
 
                     // [START_EXCLUDE]

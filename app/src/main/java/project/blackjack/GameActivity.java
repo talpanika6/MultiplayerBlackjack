@@ -1,28 +1,35 @@
 package project.blackjack;
 
-import android.support.v7.app.AppCompatActivity;
+import android.app.ActivityOptions;
+import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 import project.blackjack.Models.Player;
-import project.blackjack.Models.RoomPlayers;
 
 public class GameActivity extends BaseActivity {
 
+    private static final String TAG = "GameActivity";
+
+    private ChildEventListener playersEventListener;
     private ArrayList<Player> players;
     private String mRoomName;
     private DatabaseReference mDatabasePlayers;
@@ -33,8 +40,10 @@ public class GameActivity extends BaseActivity {
     private RelativeLayout mGameLayout,mBetLayout;
     private HashMap<Player,Boolean> playersTurns;
     private Player currPlayer;
+    private int playersNumber;
     private double bet;
     private int playerIndex=0;
+    private boolean backPressed=false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,30 +51,23 @@ public class GameActivity extends BaseActivity {
         setContentView(R.layout.activity_game);
 
 
+        // Get room & players numbers from intent
+        playersNumber=getIntent().getIntExtra(WaitingRoomActivity.EXTRA_PLAYER_NUMBER_KEY,0);
 
+        Toast.makeText(getApplicationContext(), playersNumber+" ", Toast.LENGTH_SHORT).show();
 
-        // Get room & players key from intent
-        players = getIntent().getParcelableArrayListExtra(WaitingRoomActivity.EXTRA_PLAYER_KEY);
         mRoomName=getIntent().getStringExtra(WaitingRoomActivity.EXTRA_ROOM_KEY);
-        if (players == null && mRoomName==null) {
-            throw new IllegalArgumentException("Must pass EXTRA_ROOM_KEY && EXTRA_PLAYER_KEY");
+        if (  mRoomName==null) {
+            throw new IllegalArgumentException("Must pass EXTRA_ROOM_KEY");
         }
-        playersTurns=new HashMap<>();
-        /// message to players for joining to room
-        for(Player key :players ) {
-            Toast.makeText(this,
-                  key.name +" is joins to the room",
-                    Toast.LENGTH_SHORT).show();
-
-            playersTurns.put(key,false);
-
-        }
-
-        //get player
-         currPlayer=players.get(getNextPlayer());
 
         //firebase
-        mDatabasePlayers = FirebaseDatabase.getInstance().getReference().child("Game").child(mRoomName).child("Players");
+        mDatabasePlayers = FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("players");
+
+        players=new ArrayList<>();
+        //get players from db
+        setPlayersForGame();
+
 
         //views
         mOkButton=(Button)findViewById(R.id.button_bet);
@@ -147,6 +149,121 @@ public class GameActivity extends BaseActivity {
             }
         });
 
+
+    }
+
+    private void setPlayersForGame()
+    {
+
+        playersEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
+
+
+                String key = dataSnapshot.getKey();
+
+
+                // Get user value
+                String uid = dataSnapshot.getKey();
+
+
+
+
+                // [START_EXCLUDE]
+                if (uid == null) {
+                    // User is null, error out
+                    Log.e(TAG, "Player is unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch player.",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+
+
+
+                        mDatabasePlayers.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(DataSnapshot DataSnapshot) {
+
+                                Player player = DataSnapshot.getValue(Player.class);
+                                players.add(player);
+
+                                if (players.size() == playersNumber) {
+
+                                    //start bet
+                                    prepareForBetting();
+
+                                }
+
+                            }
+
+                            @Override
+                            public void onCancelled(DatabaseError databaseError) {
+
+                            }
+                        });
+
+                    }
+
+                }
+
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load players.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabasePlayers.addChildEventListener(playersEventListener);
+
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        if (playersEventListener!=null)
+            mDatabasePlayers.removeEventListener(playersEventListener);
+
+    }
+    private void prepareForBetting()
+    {
+        playersTurns=new HashMap<>();
+
+        if (players.size()==0)
+            Toast.makeText(this,
+                    "players is null",
+                    Toast.LENGTH_SHORT).show();
+        /// message to players for joining to room
+        for(Player key :players ) {
+            Toast.makeText(this,
+                    key.name +" is joins to the room",
+                    Toast.LENGTH_SHORT).show();
+
+            playersTurns.put(key,false);
+
+        }
+
+        //get player
+        currPlayer=players.get(getNextPlayer());
+
         //set visibily false
         mGameLayout.setVisibility(View.INVISIBLE);
         mBetLayout.setVisibility(View.INVISIBLE);
@@ -154,7 +271,6 @@ public class GameActivity extends BaseActivity {
         //for the first time
         startBetting();
     }
-
     private void startBetting()
     {
 
@@ -205,6 +321,30 @@ public class GameActivity extends BaseActivity {
         for(Map.Entry<Player,Boolean> entry:playersTurns.entrySet())
         {
             playersTurns.put(entry.getKey(),false);
+        }
+
+    }
+
+    @Override
+    public void onBackPressed() {
+
+        if (backPressed)
+        {
+            ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(GameActivity.this);
+            // Go to MainActivity
+            startActivity(new Intent(GameActivity.this, MainActivity.class),options.toBundle());
+            finish();
+           //ToDo del from db the player
+
+
+        }
+        else
+        {
+            Toast.makeText(this,
+                    " Press again to exit Game",
+                    Toast.LENGTH_SHORT).show();
+
+            backPressed=true;
         }
 
     }
