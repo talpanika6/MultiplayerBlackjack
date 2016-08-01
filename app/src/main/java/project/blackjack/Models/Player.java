@@ -17,6 +17,7 @@ public class Player  implements Parcelable{
     public String uid;
     public String name;
     public long turn;
+    public double bet;
     public double chips;
 
 
@@ -24,6 +25,7 @@ public class Player  implements Parcelable{
         this.uid = in.readString();
         this.name = in.readString();
         this.turn = in.readLong();
+        this.bet=in.readDouble();
         this.chips=in.readDouble();
 
     }
@@ -31,11 +33,12 @@ public class Player  implements Parcelable{
     public Player() {}
 
 
-    public Player(String uid,String name,long turn ,double chips)
+    public Player(String uid,String name,long turn ,double bet ,double chips)
     {
         this.uid=uid;
         this.name=name ;
         this.turn=turn;
+        this.bet=bet;
         this.chips=chips;
     }
 
@@ -47,6 +50,7 @@ public class Player  implements Parcelable{
         result.put("uid", uid);
         result.put("name", name);
         result.put("turn",turn);
+        result.put("bet",bet);
         result.put("chips",chips);
 
         return result;
@@ -63,6 +67,7 @@ public class Player  implements Parcelable{
         parcel.writeString(uid);
         parcel.writeString(name);
         parcel.writeLong(turn);
+        parcel.writeDouble(bet);
         parcel.writeDouble(chips);
 
     }

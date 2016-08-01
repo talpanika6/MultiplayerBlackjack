@@ -9,11 +9,11 @@ import com.google.firebase.auth.FirebaseAuth;
 public class BaseActivity extends AppCompatActivity {
     private ProgressDialog mProgressDialog;
 
-    public void showProgressDialog() {
+    public void showProgressDialog(String msg) {
         if (mProgressDialog == null) {
             mProgressDialog = new ProgressDialog(this);
             mProgressDialog.setCancelable(false);
-            mProgressDialog.setMessage("Loading...");
+            mProgressDialog.setMessage(msg);
         }
 
         mProgressDialog.show();

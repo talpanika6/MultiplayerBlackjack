@@ -32,9 +32,8 @@
                 android:layout_width="wrap_content"
                 android:text="@string/turn"
                 android:textColor="@color/colorAccent"
-                android:layout_column="0"
-                android:layout_row="0"
-                android:textSize="18dp"
+
+                android:textSize="18sp"
                 android:layout_height="wrap_content"
                 />
 
@@ -43,7 +42,7 @@
                 android:layout_width="wrap_content"
                 android:text="@string/bet"
                 android:textColor="#FFFFFF"
-                android:textSize="18dp"
+                android:textSize="18sp"
                 android:layout_height="wrap_content"
                 />
             <android.support.v7.widget.AppCompatTextView
@@ -51,7 +50,7 @@
                 android:layout_width="wrap_content"
                 android:text="@string/balance"
                 android:textColor="#FFFFFF"
-                android:textSize="18dp"
+                android:textSize="18sp"
                 android:layout_height="wrap_content"
                 />
 
@@ -71,9 +70,11 @@
                 android:layout_height="match_parent"
                 android:orientation="vertical">
                 <EditText
+                    android:id="@+id/edit_bet"
+                    android:paddingTop="8dp"
                     android:layout_width="65dp"
                     android:layout_height="36dp"
-                    android:textSize="16dp"
+                    android:textSize="16sp"
                     android:hint="@string/chips"
                     />
                 <LinearLayout
@@ -82,19 +83,22 @@
                     android:layout_marginStart="64dp"
                     android:orientation="horizontal">
 
-                    <ImageButton
+                    <ImageView
                         android:layout_width="35dp"
                         android:layout_height="35dp"
-                        android:background="@android:color/transparent"
+                        android:id="@+id/image_lower"
                         android:src="@mipmap/ic_remove_white_18dp"/>
 
                     <ImageView
                         android:layout_width="32dp"
                         android:layout_height="32dp"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
                         android:src="@mipmap/chip"/>
 
                        <ImageView
-                           android:layout_width="25dp"
+                           android:id="@+id/image_raise"
+                           android:layout_width="35dp"
                            android:layout_height="35dp"
                            android:src="@mipmap/ic_add_white_18dp"/>
                 </LinearLayout>
@@ -140,7 +144,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="end|bottom"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentStart="true">
 
 
                 <Button

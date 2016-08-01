@@ -92,9 +92,13 @@ public class WaitingRoomActivity extends BaseActivity {
 
     private void createGameDB()
     {
+        //show progress bar
+        showProgressDialog("Loading Game...");
+
         double chips=1000;
+        double bet=0;
         for(RoomPlayers players :RoomPlayers) {
-            Player player = new Player(players.uid, players.player,players.turn, chips);
+            Player player = new Player(players.uid, players.player,players.turn, bet,chips);
             Players.add(player);
 
             Map<String, Object> PlayersValues = player.toMap();
@@ -104,6 +108,8 @@ public class WaitingRoomActivity extends BaseActivity {
             mDatabaseGame.updateChildren(childUpdates);
         }
 
+        //dismiss
+        hideProgressDialog();
     }
 
     private void startGameActivity()

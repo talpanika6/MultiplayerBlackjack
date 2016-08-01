@@ -89,7 +89,7 @@ public class SignInActivity extends BaseActivity implements View.OnClickListener
             return;
         }
 
-        showProgressDialog();
+        showProgressDialog("Sign In...");
         String email = mEmailField.getText().toString();
         String password = mPasswordField.getText().toString();
 
@@ -116,7 +116,7 @@ public class SignInActivity extends BaseActivity implements View.OnClickListener
             return;
         }
 
-        showProgressDialog();
+        showProgressDialog("Sign Up...");
         String email = mEmailField.getText().toString();
         String password = mPasswordField.getText().toString();
 
