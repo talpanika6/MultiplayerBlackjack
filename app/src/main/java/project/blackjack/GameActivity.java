@@ -20,25 +20,28 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
 import project.blackjack.Models.Player;
+import project.blackjack.Models.Turn;
 
 public class GameActivity extends BaseActivity {
 
     private static final String TAG = "GameActivity";
 
-    private ChildEventListener playersEventListener;
+    private ChildEventListener playersEventListener,turnEventListener;
     private ArrayList<Player> players;
     private String mRoomName;
-    private DatabaseReference mDatabasePlayers;
+    private DatabaseReference mDatabasePlayers,mDatabaseTurn;
     private Button mOkButton,mClearButton,mHitButton,mStayButton;
     private EditText mBetEditText;
     private TextView mBalanceText,mBetText,mTurnText;
     private ImageView mRaiseButton,mLowerButton;
     private RelativeLayout mGameLayout,mBetLayout;
-    private HashMap<Player,Boolean> playersTurns;
     private Player currPlayer;
     private int playersNumber;
     private double bet;
@@ -63,6 +66,7 @@ public class GameActivity extends BaseActivity {
 
         //firebase
         mDatabasePlayers = FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("players");
+        mDatabaseTurn=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("turn");
 
         players=new ArrayList<>();
         //get players from db
@@ -104,16 +108,22 @@ public class GameActivity extends BaseActivity {
                 currPlayer.bet=bet;
                 mBetText.setText("Bet: "+bet+"$");
 
-                playersTurns.put(currPlayer,true);
+
                 mDatabasePlayers.child(currPlayer.uid).child("bet").setValue(bet);
 
-                if (playersTurns.containsValue(false))
-                {
-                    //for another player
-                    startBetting();
-                }
+                String nextUid= getNextPlayer();
+                ///check if max players exceeded
+                 if (nextUid==null)
+                 {
+                     //finsh betting start game
+                     //Todo start game
+                     startGame();
+                 }
                 else
-                    startGame();
+                 {///change next player in DB
+                     mDatabaseTurn.child("uid").setValue(nextUid);
+                 }
+
             }
         });
 
@@ -152,23 +162,15 @@ public class GameActivity extends BaseActivity {
 
     }
 
-    private void setPlayersForGame()
-    {
+    private void setPlayersForGame() {
 
         playersEventListener = new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildAdded:" + dataSnapshot.getKey());
 
-
-                String key = dataSnapshot.getKey();
-
-
                 // Get user value
                 String uid = dataSnapshot.getKey();
-
-
-
 
                 // [START_EXCLUDE]
                 if (uid == null) {
@@ -178,9 +180,6 @@ public class GameActivity extends BaseActivity {
                             "Error: could not fetch player.",
                             Toast.LENGTH_SHORT).show();
                 } else {
-
-
-
                         mDatabasePlayers.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
                             @Override
                             public void onDataChange(DataSnapshot DataSnapshot) {
@@ -188,10 +187,21 @@ public class GameActivity extends BaseActivity {
                                 Player player = DataSnapshot.getValue(Player.class);
                                 players.add(player);
 
-                                if (players.size() == playersNumber) {
+                            //    Toast.makeText(getApplicationContext(),
+                                //        player.name +" is joins to the room",
+                                //        Toast.LENGTH_SHORT).show();
 
-                                    //start bet
-                                    prepareForBetting();
+                                //done featching
+                                if (players.size() == playersNumber) {
+                                    Toast.makeText(getApplicationContext(),
+                                            "done feathcing",
+                                            Toast.LENGTH_SHORT).show();
+                                    //remove listener
+                                    removePlayersEventListener();
+                                    //sort by turn
+                                     sortPlayerListByTurn();
+                                    //get curr player turn
+                                    setListenerForTurn();
 
                                 }
 
@@ -202,11 +212,8 @@ public class GameActivity extends BaseActivity {
 
                             }
                         });
-
                     }
-
                 }
-
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
@@ -235,42 +242,135 @@ public class GameActivity extends BaseActivity {
 
     }
 
+    private void sortPlayerListByTurn( ) {
+        Collections.sort(players, new Comparator<Player>() {
+            @Override
+            public int compare(Player p1, Player p2) {
+             if (p1.turn == p2.turn)
+                 return 0;
+
+                return p1.turn<p2.turn ? -1 : 1;
+            }
+        });
+
+    }
+
     @Override
     public void onStop() {
         super.onStop();
 
+        removePlayersEventListener();
+        removeTurnEventListener();
+
+    }
+
+    private void removeTurnEventListener() {
+        if (turnEventListener!=null)
+            mDatabaseTurn.removeEventListener(turnEventListener);
+    }
+
+    private void removePlayersEventListener() {
         if (playersEventListener!=null)
             mDatabasePlayers.removeEventListener(playersEventListener);
+    }
+
+    private void setListenerForTurn() {
+
+        turnEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+
+                Object currTurn=dataSnapshot.getValue();
+
+                // [START_EXCLUDE]
+                if (currTurn == null) {
+                    // User is null, error out
+                    Log.e(TAG, "curr turn Player is unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch urr turn Player.",
+                            Toast.LENGTH_SHORT).show();
+                }
+                else{
+                    Toast.makeText(getApplicationContext(),
+                            "child added",
+                            Toast.LENGTH_SHORT).show();
+
+                    for(Player p: players)
+                    {
+                        if(p.uid.contains(currTurn.toString()))
+                            currPlayer=p;
+                    }
+
+                    //set visibily false
+                    mGameLayout.setVisibility(View.INVISIBLE);
+                    mBetLayout.setVisibility(View.INVISIBLE);
+
+                    //for the first time
+                    startBetting();
+
+                }
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+
+                Object currTurn=dataSnapshot.getValue();
+
+
+                // [START_EXCLUDE]
+                if (currTurn == null) {
+                    // User is null, error out
+                    Log.e(TAG, "curr turn Player is unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch urr turn Player.",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+
+
+                    Toast.makeText(getApplicationContext(),
+                            "child changed",
+                            Toast.LENGTH_SHORT).show();
+                        //get player
+                    for(Player p: players)
+                    {
+                        if(p.uid.contains(currTurn.toString()))
+                            currPlayer=p;
+                    }
+
+                    //set visibily false
+                    mGameLayout.setVisibility(View.INVISIBLE);
+                    mBetLayout.setVisibility(View.INVISIBLE);
+
+                    //for the first time
+                    startBetting();
+
+                }
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load players.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabaseTurn.addChildEventListener(turnEventListener);
 
     }
-    private void prepareForBetting()
-    {
-        playersTurns=new HashMap<>();
 
-        if (players.size()==0)
-            Toast.makeText(this,
-                    "players is null",
-                    Toast.LENGTH_SHORT).show();
-        /// message to players for joining to room
-        for(Player key :players ) {
-            Toast.makeText(this,
-                    key.name +" is joins to the room",
-                    Toast.LENGTH_SHORT).show();
-
-            playersTurns.put(key,false);
-
-        }
-
-        //get player
-        currPlayer=players.get(getNextPlayer());
-
-        //set visibily false
-        mGameLayout.setVisibility(View.INVISIBLE);
-        mBetLayout.setVisibility(View.INVISIBLE);
-
-        //for the first time
-        startBetting();
-    }
     private void startBetting()
     {
 
@@ -299,7 +399,7 @@ public class GameActivity extends BaseActivity {
                 Toast.LENGTH_SHORT).show();
 
         //todo load images start dill
-        clearValuesOnMap();
+
 
         mGameLayout.setVisibility(View.VISIBLE);
         mBetLayout.setVisibility(View.INVISIBLE);
@@ -311,19 +411,25 @@ public class GameActivity extends BaseActivity {
         bet=0.0;
         mBetEditText.setText(bet+"$");
     }
-    private int getNextPlayer()
-    {
-        return (playerIndex++) % players.size();
-    }
 
-    private void clearValuesOnMap()
+    private String getNextPlayer()
     {
-        for(Map.Entry<Player,Boolean> entry:playersTurns.entrySet())
+        int index=0;
+        for(Player p: players)
         {
-            playersTurns.put(entry.getKey(),false);
+            if(p.uid.contains(currPlayer.uid))
+                index= players.indexOf(p);
         }
 
+        index++;
+
+        if (index>=players.size())
+            return null;
+
+        return players.get(index).uid;
+
     }
+
 
     @Override
     public void onBackPressed() {

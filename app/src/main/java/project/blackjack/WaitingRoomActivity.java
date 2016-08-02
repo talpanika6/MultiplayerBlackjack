@@ -35,6 +35,7 @@ import java.util.Map;
 import project.blackjack.Models.Player;
 import project.blackjack.Models.Room;
 import project.blackjack.Models.RoomPlayers;
+import project.blackjack.Models.Turn;
 import project.blackjack.Models.User;
 
 public class WaitingRoomActivity extends BaseActivity {
@@ -69,7 +70,7 @@ public class WaitingRoomActivity extends BaseActivity {
         //firebase
         mDatabase = FirebaseDatabase.getInstance().getReference().child("/rooms-players/").child(mRoomNameKey);
         mDatabaseGame=FirebaseDatabase.getInstance().getReference();
-        mDatabaseRoom=FirebaseDatabase.getInstance().getReference().child("/rooms/").child("/"+mRoomNameKey+"/");
+        mDatabaseRoom=FirebaseDatabase.getInstance().getReference().child("/rooms/").child(mRoomNameKey);
         RoomPlayers=new ArrayList<>();
         Players=new ArrayList<>();
 
@@ -86,7 +87,8 @@ public class WaitingRoomActivity extends BaseActivity {
             @Override
             public void onClick(View view) {
                 //Todo add deck entity
-                createGameDB();
+              //  createGameDB();
+                createOwnerToFirstTurn();
                 startGameActivity(RoomPlayers.size());
             }
         });
@@ -113,11 +115,49 @@ public class WaitingRoomActivity extends BaseActivity {
             childUpdates.put("/game/" + mRoomNameKey + "/players/" + players.uid, PlayersValues);
             mDatabaseGame.updateChildren(childUpdates);
         }
-        ///
+
+        //create owner to his first turn
+       // createOwnerToFirstTurn();
+
         //change state to created
         mDatabaseRoom.child("state").setValue("Created");
         //dismiss
         hideProgressDialog();
+    }
+
+    private void createOwnerToFirstTurn()
+    {
+        mDatabaseRoom.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+
+                Room room=dataSnapshot.getValue(Room.class);
+
+                if (room==null)
+                {
+                    // User is null, error out
+                    Log.e(TAG, "Room is unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch room.",
+                            Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+                    Turn turn =new Turn(room.uid);
+                    Map<String, Object> TurnValues = turn.toMap();
+                    Map<String, Object> childUpdates = new HashMap<>();
+                    childUpdates.put("/game/" + mRoomNameKey + "/turn/",TurnValues);
+                    mDatabaseGame.updateChildren(childUpdates);
+                  //
+                    createGameDB();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
     }
 
     private void startGameActivity(int numberOfPlayers)
