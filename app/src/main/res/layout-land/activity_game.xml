@@ -6,8 +6,13 @@
     android:id="@+id/activity_game"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@mipmap/green_table"
     tools:context="project.blackjack.GameActivity">
+
+    <SurfaceView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@mipmap/green_table"
+        android:id="@+id/gameview"/>
 
     <RelativeLayout
         android:layout_width="match_parent"

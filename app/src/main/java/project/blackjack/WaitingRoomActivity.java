@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import project.blackjack.Models.Deck;
 import project.blackjack.Models.Player;
 import project.blackjack.Models.Room;
 import project.blackjack.Models.RoomPlayers;
@@ -116,13 +117,30 @@ public class WaitingRoomActivity extends BaseActivity {
             mDatabaseGame.updateChildren(childUpdates);
         }
 
-        //create owner to his first turn
-       // createOwnerToFirstTurn();
+        //create deck
+        createDeckToDB();
 
         //change state to created
         mDatabaseRoom.child("state").setValue("Created");
         //dismiss
         hideProgressDialog();
+    }
+
+    private void createDeckToDB() {
+
+        Deck deck=new Deck();
+
+        deck.fill();
+
+
+
+        Map<String, Object> cardsValues = deck.toMap();
+
+        Map<String, Object> childUpdates = new HashMap<>();
+
+        childUpdates.put("/game/" + mRoomNameKey + "/deck/", cardsValues);
+        mDatabaseGame.updateChildren(childUpdates);
+
     }
 
     private void createOwnerToFirstTurn()

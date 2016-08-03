@@ -5,6 +5,7 @@ import android.os.Parcelable;
 
 import com.google.firebase.database.Exclude;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +21,8 @@ public class Player  {
     public double bet;
     public double chips;
 
+    private ArrayList<Card> hand;
+
     public Player() {}
 
 
@@ -30,10 +33,19 @@ public class Player  {
         this.turn=turn;
         this.bet=bet;
         this.chips=chips;
+
+        hand = new ArrayList<>();
     }
 
+    public void addCard(Card card) {
+        hand.add(card);
+    }
 
-    // Room to map
+    public ArrayList<Card> getHand() {
+        return hand;
+    }
+
+    // Player to map
     @Exclude
     public Map<String, Object> toMap() {
         HashMap<String, Object> result = new HashMap<>();

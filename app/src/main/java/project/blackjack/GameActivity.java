@@ -2,8 +2,12 @@ package project.blackjack;
 
 import android.app.ActivityOptions;
 import android.content.Intent;
+import android.content.res.AssetManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -19,6 +23,8 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -45,8 +51,15 @@ public class GameActivity extends BaseActivity {
     private Player currPlayer;
     private int playersNumber;
     private double bet;
-    private int playerIndex=0;
     private boolean backPressed=false;
+
+    private SurfaceHolder holder;
+    private Thread thread;
+    private boolean locker=true;
+    private Bitmap[] cardImages;
+    private Bitmap mCardBack;
+    private Bitmap mArrowTurn;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,7 +129,7 @@ public class GameActivity extends BaseActivity {
                  if (nextUid==null)
                  {
                      //finsh betting start game
-                     //Todo start game
+                     //Todo start game, remove listener
                      startGame();
                  }
                 else
@@ -428,6 +441,27 @@ public class GameActivity extends BaseActivity {
 
         return players.get(index).uid;
 
+    }
+
+
+    private void loadBitmaps() {
+        Bitmap bitCardBack = BitmapFactory.decodeResource(this.getResources(), R.drawable.dealerdown);
+        mCardBack= Bitmap.createScaledBitmap(bitCardBack, 352, 400, false);
+        AssetManager assetManager = this.getAssets();
+
+        cardImages = new Bitmap[53];
+
+        for(int i = 0; i < 53; i++) {
+            Bitmap bitmap = null;
+            try {
+                String fileName = "c"+i+".png";
+                InputStream is=assetManager.open(fileName);
+                bitmap = BitmapFactory.decodeStream(is);
+            } catch (IOException e) {
+                Toast.makeText(this,"error "+e.getMessage(),Toast.LENGTH_LONG).show();
+            }
+            cardImages[i] = Bitmap.createScaledBitmap(bitmap, 320, 360, false);
+        }
     }
 
 
