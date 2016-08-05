@@ -104,11 +104,27 @@ public class WaitingRoomActivity extends BaseActivity {
         //show progress bar
         showProgressDialog("Loading Game...");
 
+
+
+        //create Dealer
+        //push dealer id
+        String dealerKey = mDatabaseGame.child("game").child(mRoomNameKey).child("players").push().getKey();
+        Player dealer = new Player(dealerKey, "Dealer",0, 0, 0, 0);
+
+        Map<String, Object> dealerUpdate = new HashMap<>();
+        dealerUpdate.put("/game/" + mRoomNameKey + "/players/" +dealerKey, dealer.toMap());
+        mDatabaseGame.updateChildren(dealerUpdate);
+
+        //Create rest of the
+
         double chips=1000;
         double bet=0;
+        int score=0;
+
         for(RoomPlayers players :RoomPlayers) {
-            Player player = new Player(players.uid, players.player,players.turn, bet,chips);
+            Player player = new Player(players.uid, players.player,players.turn, bet,chips,score);
             Players.add(player);
+
 
             Map<String, Object> PlayersValues = player.toMap();
             Map<String, Object> childUpdates = new HashMap<>();
@@ -117,8 +133,6 @@ public class WaitingRoomActivity extends BaseActivity {
             mDatabaseGame.updateChildren(childUpdates);
         }
 
-        //create deck
-        createDeckToDB();
 
         //change state to created
         mDatabaseRoom.child("state").setValue("Created");
@@ -126,22 +140,7 @@ public class WaitingRoomActivity extends BaseActivity {
         hideProgressDialog();
     }
 
-    private void createDeckToDB() {
 
-        Deck deck=new Deck();
-
-        deck.fill();
-
-
-
-        Map<String, Object> cardsValues = deck.toMap();
-
-        Map<String, Object> childUpdates = new HashMap<>();
-
-        childUpdates.put("/game/" + mRoomNameKey + "/deck/", cardsValues);
-        mDatabaseGame.updateChildren(childUpdates);
-
-    }
 
     private void createOwnerToFirstTurn()
     {
@@ -182,7 +181,7 @@ public class WaitingRoomActivity extends BaseActivity {
     {
         //Toast.makeText(getApplicationContext(), "Players "+RoomPlayers.size(), Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(getApplicationContext(),GameActivity.class);
-        intent.putExtra(EXTRA_PLAYER_NUMBER_KEY, numberOfPlayers);
+        intent.putExtra(EXTRA_PLAYER_NUMBER_KEY, ++numberOfPlayers);
         intent.putExtra(EXTRA_ROOM_KEY,mRoomNameKey);
         startActivity(intent);
         finish();

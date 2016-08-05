@@ -5,9 +5,13 @@ import android.content.Intent;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -32,33 +36,48 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
+import project.blackjack.Models.Card;
+import project.blackjack.Models.Deck;
 import project.blackjack.Models.Player;
+import project.blackjack.Models.RoomPlayers;
 import project.blackjack.Models.Turn;
 
-public class GameActivity extends BaseActivity {
+public class GameActivity extends BaseActivity implements Runnable{
 
     private static final String TAG = "GameActivity";
+    private final int NumOfCards=52;
 
-    private ChildEventListener playersEventListener,turnEventListener;
-    private ArrayList<Player> players;
-    private String mRoomName;
-    private DatabaseReference mDatabasePlayers,mDatabaseTurn;
+    //firebase
+    private ChildEventListener playersEventListener,turnBetEventListener,deckEventListener,cardDealingEventListener;
+    private DatabaseReference mDatabaseRef,mDatabasePlayers,mDatabaseTurn,mDatabaseDeck,mDatabasePlayersCards;
+
+    //objects
+    private ArrayList<Player> mPlayers;
+    private ArrayList<Card> mCards;
+    private Deck mDeck;
+    private Player mCurrPlayer;
+    private HashMap<String,ArrayList<Card>> mPlayersCards;
+
+    //views
     private Button mOkButton,mClearButton,mHitButton,mStayButton;
     private EditText mBetEditText;
     private TextView mBalanceText,mBetText,mTurnText;
     private ImageView mRaiseButton,mLowerButton;
     private RelativeLayout mGameLayout,mBetLayout;
-    private Player currPlayer;
+    private SurfaceView surface;
+
+    //variables
     private int playersNumber;
     private double bet;
     private boolean backPressed=false;
+    private String mRoomName;
 
+    //thread
     private SurfaceHolder holder;
     private Thread thread;
     private boolean locker=true;
     private Bitmap[] cardImages;
     private Bitmap mCardBack;
-    private Bitmap mArrowTurn;
 
 
     @Override
@@ -78,10 +97,16 @@ public class GameActivity extends BaseActivity {
         }
 
         //firebase
+        mDatabaseRef= FirebaseDatabase.getInstance().getReference();
         mDatabasePlayers = FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("players");
         mDatabaseTurn=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("turn");
+        mDatabaseDeck=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("deck");
+        mDatabasePlayersCards=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("players-cards");
 
-        players=new ArrayList<>();
+        //create objects
+        mPlayers=new ArrayList<>();
+        mPlayersCards=new HashMap<>();
+
         //get players from db
         setPlayersForGame();
 
@@ -99,15 +124,19 @@ public class GameActivity extends BaseActivity {
         mLowerButton=(ImageView)findViewById(R.id.image_lower);
         mGameLayout=(RelativeLayout)findViewById(R.id.game_layout);
         mBetLayout=(RelativeLayout)findViewById(R.id.bet_layout);
+        surface=(SurfaceView)findViewById(R.id.gameview);
+
+
+        //load images
+        loadBitmaps();
 
         //Listeners
-        //finish betting next players
         mOkButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
                 //validate for chips
-                if (bet>currPlayer.chips)
+                if (bet>mCurrPlayer.chips)
                 {
                     Toast.makeText(getApplicationContext(),
                             "Error: not enough chips .",
@@ -118,22 +147,27 @@ public class GameActivity extends BaseActivity {
                     return;
                 }
 
-                currPlayer.bet=bet;
+                mCurrPlayer.bet=bet;
                 mBetText.setText("Bet: "+bet+"$");
 
 
-                mDatabasePlayers.child(currPlayer.uid).child("bet").setValue(bet);
+                mDatabasePlayers.child(mCurrPlayer.uid).child("bet").setValue(bet);
 
                 String nextUid= getNextPlayer();
                 ///check if max players exceeded
                  if (nextUid==null)
                  {
-                     //finsh betting start game
-                     //Todo start game, remove listener
+                     // start game
+
                      startGame();
                  }
                 else
                  {///change next player in DB
+                     Player p=getPlayerObjectByUid(nextUid);
+                     if(p.name.equals("Dealer")) {
+                         //if dealer pass him
+                         nextUid = getNextPlayer();
+                     }
                      mDatabaseTurn.child("uid").setValue(nextUid);
                  }
 
@@ -144,10 +178,7 @@ public class GameActivity extends BaseActivity {
         mClearButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
                 clearBet();
-
-
             }
         });
         //raise bet
@@ -155,7 +186,6 @@ public class GameActivity extends BaseActivity {
             @Override
             public void onClick(View view) {
                 bet+=10;
-
                 mBetEditText.setText(bet+"$");
             }
         });
@@ -175,6 +205,11 @@ public class GameActivity extends BaseActivity {
 
     }
 
+
+
+    /**
+     * Init methods
+     */
     private void setPlayersForGame() {
 
         playersEventListener = new ChildEventListener() {
@@ -193,40 +228,40 @@ public class GameActivity extends BaseActivity {
                             "Error: could not fetch player.",
                             Toast.LENGTH_SHORT).show();
                 } else {
-                        mDatabasePlayers.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
-                            @Override
-                            public void onDataChange(DataSnapshot DataSnapshot) {
+                    mDatabasePlayers.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot DataSnapshot) {
 
-                                Player player = DataSnapshot.getValue(Player.class);
-                                players.add(player);
+                            Player player = DataSnapshot.getValue(Player.class);
+                            mPlayers.add(player);
 
                             //    Toast.makeText(getApplicationContext(),
-                                //        player.name +" is joins to the room",
-                                //        Toast.LENGTH_SHORT).show();
+                            //        player.name +" is joins to the room",
+                            //        Toast.LENGTH_SHORT).show();
 
-                                //done featching
-                                if (players.size() == playersNumber) {
-                                    Toast.makeText(getApplicationContext(),
-                                            "done feathcing",
-                                            Toast.LENGTH_SHORT).show();
-                                    //remove listener
-                                    removePlayersEventListener();
-                                    //sort by turn
-                                     sortPlayerListByTurn();
-                                    //get curr player turn
-                                    setListenerForTurn();
-
-                                }
+                            //done featching
+                            if (mPlayers.size() == playersNumber) {
+                                Toast.makeText(getApplicationContext(),
+                                        "done feathcing",
+                                        Toast.LENGTH_SHORT).show();
+                                //remove listener
+                                removePlayersEventListener();
+                                //sort by turn
+                                sortPlayerListByTurn();
+                                //get curr player turn
+                                setListenerForTurn();
 
                             }
 
-                            @Override
-                            public void onCancelled(DatabaseError databaseError) {
+                        }
 
-                            }
-                        });
-                    }
+                        @Override
+                        public void onCancelled(DatabaseError databaseError) {
+
+                        }
+                    });
                 }
+            }
 
             @Override
             public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
@@ -254,9 +289,30 @@ public class GameActivity extends BaseActivity {
         mDatabasePlayers.addChildEventListener(playersEventListener);
 
     }
+    /**
+     * Bet methods
+     */
+    private void startBetting() {
+
+        if(getUid().equals(mCurrPlayer.uid))
+        {
+            clearBet();
+
+            mTurnText.setText("Your Turn");
+            mBalanceText.setText("Balance: "+mCurrPlayer.chips);
+            mBetLayout.setVisibility(View.VISIBLE);
+
+        }
+        else
+        {
+            mTurnText.setText("Waiting for opponents ");
+            mBetLayout.setVisibility(View.INVISIBLE);
+        }
+
+    }
 
     private void sortPlayerListByTurn( ) {
-        Collections.sort(players, new Comparator<Player>() {
+        Collections.sort(mPlayers, new Comparator<Player>() {
             @Override
             public int compare(Player p1, Player p2) {
              if (p1.turn == p2.turn)
@@ -268,28 +324,9 @@ public class GameActivity extends BaseActivity {
 
     }
 
-    @Override
-    public void onStop() {
-        super.onStop();
-
-        removePlayersEventListener();
-        removeTurnEventListener();
-
-    }
-
-    private void removeTurnEventListener() {
-        if (turnEventListener!=null)
-            mDatabaseTurn.removeEventListener(turnEventListener);
-    }
-
-    private void removePlayersEventListener() {
-        if (playersEventListener!=null)
-            mDatabasePlayers.removeEventListener(playersEventListener);
-    }
-
     private void setListenerForTurn() {
 
-        turnEventListener = new ChildEventListener() {
+        turnBetEventListener = new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
 
@@ -308,10 +345,10 @@ public class GameActivity extends BaseActivity {
                             "child added",
                             Toast.LENGTH_SHORT).show();
 
-                    for(Player p: players)
+                    for(Player p: mPlayers)
                     {
-                        if(p.uid.contains(currTurn.toString()))
-                            currPlayer=p;
+                        if(p.uid.contains(currTurn.toString()) && !p.name.equals("Dealer"))
+                            mCurrPlayer=p;
                     }
 
                     //set visibily false
@@ -347,10 +384,10 @@ public class GameActivity extends BaseActivity {
                             "child changed",
                             Toast.LENGTH_SHORT).show();
                         //get player
-                    for(Player p: players)
+                    for(Player p: mPlayers)
                     {
                         if(p.uid.contains(currTurn.toString()))
-                            currPlayer=p;
+                            mCurrPlayer=p;
                     }
 
                     //set visibily false
@@ -380,42 +417,7 @@ public class GameActivity extends BaseActivity {
                 Toast.makeText(getApplicationContext(), "Failed to load players.", Toast.LENGTH_SHORT).show();
             }
         };
-        mDatabaseTurn.addChildEventListener(turnEventListener);
-
-    }
-
-    private void startBetting()
-    {
-
-        if(getUid().equals(currPlayer.uid))
-        {
-            clearBet();
-
-            mTurnText.setText("Your Turn");
-            mBalanceText.setText("Balance: "+currPlayer.chips);
-            mBetLayout.setVisibility(View.VISIBLE);
-
-        }
-        else
-        {
-            mTurnText.setText("Waiting for opponents ");
-            mBetLayout.setVisibility(View.INVISIBLE);
-        }
-
-    }
-
-    private void startGame()
-    {
-
-        Toast.makeText(getApplicationContext(),
-                "starting game ...",
-                Toast.LENGTH_SHORT).show();
-
-        //todo load images start dill
-
-
-        mGameLayout.setVisibility(View.VISIBLE);
-        mBetLayout.setVisibility(View.INVISIBLE);
+        mDatabaseTurn.addChildEventListener(turnBetEventListener);
 
     }
 
@@ -425,24 +427,227 @@ public class GameActivity extends BaseActivity {
         mBetEditText.setText(bet+"$");
     }
 
-    private String getNextPlayer()
+    /**
+     * Game Methods
+     */
+
+    private void startGame()
     {
-        int index=0;
-        for(Player p: players)
-        {
-            if(p.uid.contains(currPlayer.uid))
-                index= players.indexOf(p);
-        }
 
-        index++;
+        //hide bet layout from last player
+        mBetLayout.setVisibility(View.INVISIBLE);
+        //remove listener
+        removeTurnBetEventListener();
 
-        if (index>=players.size())
-            return null;
+        //
+        Toast.makeText(getApplicationContext(),
+                "betting is over,  starting game ...",
+                Toast.LENGTH_SHORT).show();
 
-        return players.get(index).uid;
+        //set next turn
+        //owner / dealer same
+        mDatabaseTurn.child("uid").setValue(mPlayers.get(0).uid);
+
+        // deal cards by turns
+        setCardDealingEventListener();
 
     }
 
+    private void setEventListenerForDeck() {
+
+        deckEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+
+                Card card=dataSnapshot.getValue(Card.class);
+
+                // [START_EXCLUDE]
+                if (card == null) {
+                    // User is null, error out
+                    Log.e(TAG, "card unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch card.",
+                            Toast.LENGTH_SHORT).show();
+                }
+                else{
+                    Toast.makeText(getApplicationContext(),
+                            "child added",
+                            Toast.LENGTH_SHORT).show();
+
+                      mCards.add(card);
+
+                    //all cards are excepted from the server
+                    if(mCards.size()==NumOfCards)
+                    {
+                        //remove listener
+                        removeDeckEventListener();
+                        //create deck
+                        mDeck=new Deck(mCards,NumOfCards);
+                        //shuffle cards
+                        mDeck.shuffle();
+                        //start deal cards to dealer
+                        startDealerDealing();
+                    }
+
+                }
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabaseDeck.addChildEventListener(deckEventListener);
+    }
+
+    private void setCardDealingEventListener()
+    {
+        cardDealingEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+
+                Object currTurn=dataSnapshot.getValue();
+
+                //only dealer
+                // [START_EXCLUDE]
+                if (currTurn == null) {
+                    // User is null, error out
+                    Log.e(TAG, "curr turn Player is unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch urr turn Player.",
+                            Toast.LENGTH_SHORT).show();
+                }
+                else{
+                    Toast.makeText(getApplicationContext(),
+                            "child added",
+                            Toast.LENGTH_SHORT).show();
+
+                    for(Player p: mPlayers)
+                    {
+                        if(p.uid.contains(currTurn.toString()))
+                            mCurrPlayer=p;
+                    }
+
+
+                    if(getUid().equals(mCurrPlayer.uid))
+                    {
+                        //create deck
+                        createDeckInDB();
+
+                        //create cards
+                        mCards=new ArrayList<>();
+
+                        //getting deck from db
+                        setEventListenerForDeck();
+                    }
+
+
+
+                }
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+                //every player turn
+                //Todo get deck
+                //Todo get players-card && update score in each player and his hand
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabaseTurn.addChildEventListener(cardDealingEventListener);
+    }
+
+
+    private void startDealerDealing()
+    {
+        //start the thread for draw in canvas
+        //where to put
+        startThread();
+
+        //add card
+        //get 2 cards
+        Card c1=mDeck.deal();
+        Card c2=mDeck.deal();
+        mCurrPlayer.addCard(c1);
+        mCurrPlayer.addCard(c2);
+
+        //update score
+        mCurrPlayer.upddateScore();
+        mDatabasePlayers.child(mCurrPlayer.uid).child("score").setValue(mCurrPlayer.score);
+
+        //remove Cards from Deck in DB
+        mDatabaseDeck.child(c1.getStringRank()).removeValue();
+        mDatabaseDeck.child(c2.getStringRank()).removeValue();
+
+        //save cards in DB
+        for(Card c :mCurrPlayer.getHand()) {
+
+            Map<String, Object> CardsValues = c.toMap();
+            Map<String, Object> childUpdates = new HashMap<>();
+
+            childUpdates.put("/game/" + mRoomName + "/players-cards/" +mCurrPlayer.uid, CardsValues);
+            mDatabaseRef.updateChildren(childUpdates);
+        }
+
+
+        //next turn
+        mDatabaseTurn.child("uid").setValue(getNextPlayer());
+
+    }
+
+
+    private void createDeckInDB() {
+
+        Deck deck=new Deck();
+
+        deck.fill();
+
+
+        Map<String, Object> cardsValues = deck.toMap();
+
+        Map<String, Object> childUpdates = new HashMap<>();
+
+        childUpdates.put("/game/" + mRoomName + "/deck/", cardsValues);
+        mDatabaseRef.updateChildren(childUpdates);
+
+    }
 
     private void loadBitmaps() {
         Bitmap bitCardBack = BitmapFactory.decodeResource(this.getResources(), R.drawable.dealerdown);
@@ -464,6 +669,71 @@ public class GameActivity extends BaseActivity {
         }
     }
 
+    private String getNextPlayer() {
+        int index=0;
+        for(Player p: mPlayers)
+        {
+            if(p.uid.contains(mCurrPlayer.uid))
+                index= mPlayers.indexOf(p);
+        }
+
+        index++;
+
+        if (index>=mPlayers.size())
+            return null;
+
+        return mPlayers.get(index).uid;
+
+    }
+
+    private Player getPlayerObjectByUid(String uid)
+    {
+        for(Player p:mPlayers)
+        {
+            if (p.uid.equals(uid))
+                return p;
+        }
+        return null;
+    }
+
+
+    /**
+     * Remove Listeners
+     */
+
+    private void removeCardDealingEventListener() {
+        if (cardDealingEventListener!=null)
+            mDatabaseDeck.removeEventListener(cardDealingEventListener);
+    }
+
+    private void removeDeckEventListener() {
+        if (deckEventListener!=null)
+            mDatabaseDeck.removeEventListener(deckEventListener);
+    }
+
+    private void removeTurnBetEventListener() {
+        if (turnBetEventListener!=null)
+            mDatabaseTurn.removeEventListener(turnBetEventListener);
+    }
+
+    private void removePlayersEventListener() {
+        if (playersEventListener!=null)
+            mDatabasePlayers.removeEventListener(playersEventListener);
+    }
+
+    /**
+     * Activity methods
+     */
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        removeCardDealingEventListener();
+        removePlayersEventListener();
+        removeTurnBetEventListener();
+        removeDeckEventListener();
+
+    }
 
     @Override
     public void onBackPressed() {
@@ -488,4 +758,113 @@ public class GameActivity extends BaseActivity {
         }
 
     }
+
+    /**
+     * Runnable imp.
+     */
+
+    private void startThread() {
+        //place holder
+        holder = surface.getHolder();
+        //start thread
+        thread = new Thread(this);
+        thread.start();
+    }
+
+    @Override
+    public void run() {
+/*
+        try {
+            while(locker) {
+                //checks if the lockCanvas() method will be success,and if not, will check this statement again
+                if (!holder.getSurface().isValid())
+                    continue;
+
+                if(waitingForInput)
+                    continue;
+
+                Canvas canvas = holder.lockCanvas();
+                draw(canvas);
+                holder.unlockCanvasAndPost(canvas);
+              //  waitingForInput = true;
+            }
+        } catch (InterruptedException e) {
+            Log.i("run",e.getMessage());
+        }
+        */
+    }
+
+
+    private void draw(Canvas canvas) {
+
+        /*
+        canvas.drawColor(Color.rgb(0, 135, 0));
+        int playerPlace=4;
+        for( int i=0; i<game.getPlayers().size(); i++ )
+        {
+            ArrayList<Card> hand = game.getPlayers().get(i).getHand();
+
+            Paint paint = new Paint();
+            paint.setColor(Color.WHITE);
+            paint.setTextSize(50);
+
+            //get score
+            int score = game.score(game.getPlayers().get(i));
+
+
+
+            if (i<1)
+            {//Dealer
+                canvas.drawText(game.getPlayers().get(i).getName() + ": " +  score, 20, 100 + i * 400, paint);
+                // canvas.drawText("Bet: " + game.getPlayers().get(i).getChips(), 1200, 100 + i * 400, paint);
+
+                if(game.getPlayers().get(i).equals(game.getCurrentPlayer())) {
+                    canvas.drawBitmap(mArrowTurn, 20, 150 + i * 400, null);
+                }
+
+                if(score > 21) {
+                    canvas.drawText("BUST", 20, 300 + i * 400, paint);
+                }
+            }
+            else//Player
+            {
+                canvas.drawText(game.getPlayers().get(i).getName() + ": " +  score, 20, 100 + i*(playerPlace-1) * 400, paint);
+                // canvas.drawText("Bet: " + game.getPlayers().get(i).getChips(), 1200, 100 + i *(playerPlace-1)* 400, paint);
+
+                if(game.getPlayers().get(i).equals(game.getCurrentPlayer())) {
+                    canvas.drawBitmap(mArrowTurn, 20, 150 + i *(playerPlace-1)* 400, null);
+                }
+
+                if(score > 21) {
+                    canvas.drawText("BUST", 20, 300 + i *(playerPlace-1)* 400, paint);
+                }
+            }
+
+
+            // canvas.drawText("Count: " + game.cardCounting, 800, 100, paint);
+
+
+
+            for( int j=0; j < hand.size(); j++ )
+            {
+                Card c = hand.get(j);
+
+
+                if( i == 0 && j == 0 && game.isHoleFlipped)
+                {
+                    canvas.drawBitmap(mCardBack, 520 + j * 50, 200 + i * 400, null );
+                }
+                else
+                {
+
+                    if (i<1)
+                        canvas.drawBitmap(cardImages[c.getCardIndex()], 520 + j * 50, 200 + i * 400, null );
+                    else
+                        canvas.drawBitmap(cardImages[c.getCardIndex()], 520 + j * 50, 100 + i *playerPlace* 300, null );
+                }
+            }
+        }
+        */
+    }
+
 }

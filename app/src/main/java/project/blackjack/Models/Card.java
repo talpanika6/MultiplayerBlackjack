@@ -1,6 +1,5 @@
 package project.blackjack.Models;
 
-import com.google.firebase.auth.api.model.StringList;
 import com.google.firebase.database.Exclude;
 
 import java.util.HashMap;
@@ -47,7 +46,7 @@ public class Card {
 
         return Integer.getInteger(split[0]);
     }
-
+    @Exclude
     public String getStringRank()
     {
 
@@ -60,8 +59,8 @@ public class Card {
     }
 
     @Exclude
-    public Map<String, Integer> toMap() {
-        HashMap<String, Integer> result = new HashMap<>();
+    public Map<String, Object> toMap() {
+        HashMap<String, Object> result = new HashMap<>();
         result.put(rank, suit);
 
         return result;

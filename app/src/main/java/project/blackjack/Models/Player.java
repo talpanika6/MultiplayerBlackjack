@@ -20,25 +20,70 @@ public class Player  {
     public long turn;
     public double bet;
     public double chips;
+    public int score;
 
     private ArrayList<Card> hand;
 
     public Player() {}
 
 
-    public Player(String uid,String name,long turn ,double bet ,double chips)
+    public Player(String uid,String name,long turn ,double bet ,double chips,int score)
     {
         this.uid=uid;
         this.name=name ;
         this.turn=turn;
         this.bet=bet;
         this.chips=chips;
+        this.score=score;
 
         hand = new ArrayList<>();
     }
 
+    public int getPlayerScore() {
+        int sum=0;
+
+        for(Card h:hand)
+        {
+            //check for score
+
+            if (h.getIntRank()==1)
+            {
+                //Ace can be 11
+                int temp=11;
+
+                if((temp+sum)>21)
+                {
+                    //ace is 1
+                    sum+=h.getIntRank();
+                }
+                else
+                {
+                    //ace is 11
+                    sum+=temp;
+                }
+            }
+             //      Jack                         Queen               King
+            else if((h.getIntRank()==11) || (h.getIntRank()==12) || (h.getIntRank()==13))
+            {
+                sum+=10;
+            }
+            else
+            {//2-19=0
+              sum+=h.getIntRank();
+            }
+        }
+
+        return sum;
+    }
+
     public void addCard(Card card) {
         hand.add(card);
+
+    }
+
+    public void upddateScore()
+    {
+        this.score=getPlayerScore();
     }
 
     public ArrayList<Card> getHand() {

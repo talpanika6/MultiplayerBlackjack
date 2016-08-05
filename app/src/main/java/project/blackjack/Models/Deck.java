@@ -38,6 +38,7 @@ public class Deck {
         return result;
     }
 
+
     @Exclude
     public void fill() {
         cards = new ArrayList<>(52);
