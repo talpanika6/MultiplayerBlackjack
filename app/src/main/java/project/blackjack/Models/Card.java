@@ -21,30 +21,16 @@ public class Card {
 
     public Card(int r,int s)
     {
-        this.rank=String.valueOf(r+"_"+s);
-        this.suit=s;
+        this(String.valueOf(r+"-"+s),s);
     }
 
-    /*
-    @Exclude
-    public String toString() {
-        String val;
-        // empty string because 1 indexed I dont like this
-        String[] suitList = {"", "Clubs", "Diamonds", "Hearts", "Spades"}; // This is kinda dumb
-        if(rank == 1) val = "Ace";
-        else if(rank == 11) val = "Jack";
-        else if(rank == 12) val = "Queen";
-        else if(rank == 13) val = "King";
-        else val = String.valueOf(rank);
-        return val + " of " + suitList[suit];
-    }
-*/
+
     @Exclude
     public int getIntRank()
     {
-        String split[]= rank.split("_");
+        String [] split= rank.split("-");
 
-        return Integer.getInteger(split[0]);
+        return Integer.parseInt(split[0]);
     }
     @Exclude
     public String getStringRank()
@@ -75,5 +61,10 @@ public class Card {
 
         return (r - 1)*4 + suit ;
 
+    }
+
+    public String toString()
+    {
+        return "rank: "+rank+", suit: "+suit;
     }
 }

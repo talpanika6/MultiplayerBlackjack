@@ -77,17 +77,32 @@ public class Player  {
     }
 
     public void addCard(Card card) {
+
+        if (hand==null)
+            hand=new ArrayList<>();
+
         hand.add(card);
 
     }
 
-    public void upddateScore()
+    public void updateScore()
     {
         this.score=getPlayerScore();
     }
 
     public ArrayList<Card> getHand() {
         return hand;
+    }
+
+    public Map<String, Object> handoMap()
+    {
+        HashMap<String, Object> result = new HashMap<>();
+
+        for(Card c: hand)
+        {
+            result.put(c.getStringRank(), c.getSuit());
+        }
+        return result;
     }
 
     // Player to map
