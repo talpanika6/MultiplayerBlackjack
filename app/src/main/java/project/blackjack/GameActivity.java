@@ -8,7 +8,9 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -87,14 +89,23 @@ public class GameActivity extends BaseActivity{
     private Thread thread;
     private boolean locker=true;
     private Bitmap[] cardImages;
-    private Bitmap mCardBack;
+    private Bitmap mCardBack,background;
     private boolean waitingForInput=true;
 
-
+    //screan
+     private int height;
+     private int width;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
+
+
+        //get screate Size
+        DisplayMetrics displaymetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displaymetrics);
+         height = displaymetrics.heightPixels;
+         width = displaymetrics.widthPixels;
 
         //Base activity
         mContext=this;
@@ -593,6 +604,16 @@ public class GameActivity extends BaseActivity{
             Toast.makeText(getApplicationContext(),
                     " Start Playing",
                     Toast.LENGTH_SHORT).show();
+
+
+            mContext.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+
+                    mTurnText.setText("Your Turn");
+                    mGameLayout.setVisibility(View.VISIBLE);
+                }
+            });
         }
 
 
@@ -617,23 +638,28 @@ public class GameActivity extends BaseActivity{
     }
 
     private void loadBitmaps() {
-        Bitmap bitCardBack = BitmapFactory.decodeResource(this.getResources(), R.drawable.dealerdown);
-        mCardBack= Bitmap.createScaledBitmap(bitCardBack, 352, 400, false);
+        Bitmap bitCardBack = BitmapFactory.decodeResource(this.getResources(), R.mipmap.dealerdown);
+        mCardBack= Bitmap.createScaledBitmap(bitCardBack, 260, 300, false);
+
+        Bitmap back = BitmapFactory.decodeResource(this.getResources(), R.mipmap.green_table);
+        background= Bitmap.createScaledBitmap(back, width, height, false);
+
+
         AssetManager assetManager = this.getAssets();
 
-        cardImages = new Bitmap[52];
+        cardImages = new Bitmap[53];
 
-        for(int i = 0; i < 52; i++) {
+        for(int i = 1; i < 53; i++) {
             Bitmap bitmap = null;
             try {
-                int index=i+1;
-                String fileName = "c"+index+".png";
+
+                String fileName = "c"+i+".png";
                 InputStream is=assetManager.open(fileName);
                 bitmap = BitmapFactory.decodeStream(is);
             } catch (IOException e) {
                 Toast.makeText(this,"error "+e.getMessage(),Toast.LENGTH_LONG).show();
             }
-            cardImages[i] = Bitmap.createScaledBitmap(bitmap, 320, 360, false);
+            cardImages[i] = Bitmap.createScaledBitmap(bitmap, 260, 300, false);
         }
     }
 
@@ -1083,7 +1109,7 @@ public class GameActivity extends BaseActivity{
                 // [START_EXCLUDE]
                 if (playerKey == null) {
                     // User is null, error out
-                    Log.e(TAG, "player unexpectedly null");
+                    Log.e(TAG, "player unexpectefdly null");
                     Toast.makeText(getApplicationContext(),
                             "Error: could not fetch player.",
                             Toast.LENGTH_SHORT).show();
@@ -1344,9 +1370,15 @@ public class GameActivity extends BaseActivity{
     private void draw(Canvas canvas) {
 
 
-        float offset =CardsPositions.cardOffset;
-      //  canvas.drawColor(Color.rgb(0, 135, 0));
+        float cardOffset =CardsPositions.cardOffset;
+        float dealerOffset=CardsPositions.dealerOffset;
+
         int dealerFlipped=0;
+
+        Rect dest = new Rect(0, 0,width, height);
+        Paint pBack = new Paint();
+        pBack.setFilterBitmap(true);
+        canvas.drawBitmap(background, null, dest, pBack);
 
         //Pass over all players
         for(Player p: mPlayers)
@@ -1355,33 +1387,33 @@ public class GameActivity extends BaseActivity{
 
             Paint paint = new Paint();
             paint.setColor(Color.WHITE);
-            paint.setTextSize(50);
+            paint.setTextSize(60);
 
             float posX=mCardPostions.getPlayerPositionByTurn((int)(p.turn)).getX();
-           float posY=mCardPostions.getPlayerPositionByTurn((int)(p.turn)).getY();
+            float posY=mCardPostions.getPlayerPositionByTurn((int)(p.turn)).getY();
 
             //get score
             int score = p.score;
 
-            if (p.name.equals("dealer"))
+            if (p.name.equals("Dealer"))
             {//Dealer
-                canvas.drawText(p.name + ": " +  score,posX-CardsPositions.nameOffset , posY, paint);
+                canvas.drawText(p.name + ": " +  score,posX-dealerOffset, posY+20, paint);
 
-                /*
-                if(score > 21) {
-                    canvas.drawText("BUST", 20, 300 + i * 400, paint);
-                }
-                 */
+
+                //if(score > 21) {
+               //     canvas.drawText("BUST", 20, 300 + i * 400, paint);
+              //  }
+
             }
             else//Player
             {
-                canvas.drawText(p.name + ": " +  score, posX-CardsPositions.nameOffset , posY, paint);
+                canvas.drawText(p.name + ": " +  score, posX-CardsPositions.nameOffset , posY-cardOffset, paint);
 
-              /*
-                if(score > 21) {
-                    canvas.drawText("BUST", 20, 300 + i *(playerPlace-1)* 400, paint);
-                }
-                */
+
+               // if(score > 21) {
+                //    canvas.drawText("BUST", 20, 300 + i *(playerPlace-1)* 400, paint);
+              //  }
+
             }
 
             int handIndex=0;
@@ -1390,9 +1422,9 @@ public class GameActivity extends BaseActivity{
             for(Card c: hand)
             {
 
-                if(p.name.equals("dealer"))
+                if(p.name.equals("Dealer"))
                 {
-                    if(dealerFlipped>0)
+                    if(dealerFlipped<1)
                         isCardFlipped=true;
 
                     if (isCardFlipped)
@@ -1403,13 +1435,13 @@ public class GameActivity extends BaseActivity{
                     }
                    else
                     {
-                        canvas.drawBitmap(cardImages[c.getCardIndex()], posX+handIndex*offset,posY, null );
+                        canvas.drawBitmap(cardImages[c.getCardIndex()], posX+handIndex*cardOffset,posY, null );
                     }
 
                 }
                 else//player
                 {
-                   canvas.drawBitmap(cardImages[c.getCardIndex()],  posX+handIndex*offset, posY, null );
+                   canvas.drawBitmap(cardImages[c.getCardIndex()],  posX+handIndex*cardOffset, posY, null );
                 }
 
                 handIndex++;

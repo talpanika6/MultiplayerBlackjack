@@ -10,7 +10,8 @@ import java.util.ArrayList;
 
 public class CardsPositions {
 
-    public static float cardOffset=20;
+    public static float cardOffset=50;
+    public static float dealerOffset=300;
     public static  float nameOffset=70;
 
 
@@ -31,15 +32,15 @@ public class CardsPositions {
 
             //dealer
             case 0:
-                pos =new Position (300,100);
+                pos =new Position (1050,240);
                 break;
 
             case 1:
-                pos =new Position (400,300);
+                pos =new Position (2000,800);
                 break;
 
             case 2:
-                  pos =new Position (300,300);
+                  pos =new Position (1600,700);
                 break;
 
             case 3:
