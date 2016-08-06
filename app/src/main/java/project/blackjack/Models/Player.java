@@ -41,38 +41,30 @@ public class Player  {
 
     public int getPlayerScore() {
         int sum=0;
+       if(hand !=null) {
+           for (Card h : hand) {
+               //check for score
 
-        for(Card h:hand)
-        {
-            //check for score
+               if (h.getIntRank() == 1) {
+                   //Ace can be 11
+                   int temp = 11;
 
-            if (h.getIntRank()==1)
-            {
-                //Ace can be 11
-                int temp=11;
-
-                if((temp+sum)>21)
-                {
-                    //ace is 1
-                    sum+=h.getIntRank();
-                }
-                else
-                {
-                    //ace is 11
-                    sum+=temp;
-                }
-            }
-             //      Jack                         Queen               King
-            else if((h.getIntRank()==11) || (h.getIntRank()==12) || (h.getIntRank()==13))
-            {
-                sum+=10;
-            }
-            else
-            {//2-19=0
-              sum+=h.getIntRank();
-            }
-        }
-
+                   if ((temp + sum) > 21) {
+                       //ace is 1
+                       sum += h.getIntRank();
+                   } else {
+                       //ace is 11
+                       sum += temp;
+                   }
+               }
+               //      Jack                         Queen               King
+               else if ((h.getIntRank() == 11) || (h.getIntRank() == 12) || (h.getIntRank() == 13)) {
+                   sum += 10;
+               } else {//2-19=0
+                   sum += h.getIntRank();
+               }
+           }
+       }
         return sum;
     }
 
@@ -90,10 +82,11 @@ public class Player  {
         this.score=getPlayerScore();
     }
 
+    @Exclude
     public ArrayList<Card> getHand() {
         return hand;
     }
-
+    @Exclude
     public Map<String, Object> handoMap()
     {
         HashMap<String, Object> result = new HashMap<>();
@@ -114,6 +107,7 @@ public class Player  {
         result.put("turn",turn);
         result.put("bet",bet);
         result.put("chips",chips);
+        result.put("score",score);
 
         return result;
     }

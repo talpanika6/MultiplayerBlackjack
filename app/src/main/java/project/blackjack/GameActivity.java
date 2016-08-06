@@ -30,26 +30,27 @@ import com.google.firebase.database.ValueEventListener;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
 import project.blackjack.Models.Card;
+import project.blackjack.Models.CardsPositions;
 import project.blackjack.Models.Deck;
 import project.blackjack.Models.Player;
-import project.blackjack.Models.RoomPlayers;
-import project.blackjack.Models.Turn;
 
-public class GameActivity extends BaseActivity implements Runnable{
+
+public class GameActivity extends BaseActivity{
 
     private static final String TAG = "GameActivity";
-    private final int NumOfCards=52;
+    private int NumOfCards=52;
+
+
 
     //firebase
-    private ChildEventListener playersEventListener,turnBetEventListener,deckEventListener,cardDealingEventListener;
-    private DatabaseReference mDatabaseRef,mDatabasePlayers,mDatabaseTurn,mDatabaseDeck,mDatabasePlayersCards;
+    private ChildEventListener roomEventListener,playersEventListener,turnBetEventListener,deckEventListener,cardDealingEventListener,playersCardsEventListener,playersCardsHandEventListener;
+    private DatabaseReference mDatabaseRef,mDatabaseRoom,mDatabasePlayers,mDatabaseTurn,mDatabaseDeck,mDatabasePlayersCards;
 
     //objects
     private BaseActivity mContext;
@@ -57,7 +58,9 @@ public class GameActivity extends BaseActivity implements Runnable{
     private ArrayList<Card> mCards;
     private Deck mDeck;
     private Player mCurrPlayer;
-    private HashMap<String,ArrayList<Card>> mPlayersCards;
+    private CardsPositions mCardPostions;
+
+
 
     //views
     private Button mOkButton,mClearButton,mHitButton,mStayButton;
@@ -71,7 +74,13 @@ public class GameActivity extends BaseActivity implements Runnable{
     private int playersNumber;
     private double bet;
     private boolean backPressed=false;
+    private boolean isCardFlipped=false;
     private String mRoomName;
+    private int nPlayers;
+    private long currNumberOfCards=0;
+    private long currNumberOfPlayersHand=0;
+    private long numOfHand=0;
+
 
     //thread
     private SurfaceHolder holder;
@@ -79,7 +88,7 @@ public class GameActivity extends BaseActivity implements Runnable{
     private boolean locker=true;
     private Bitmap[] cardImages;
     private Bitmap mCardBack;
-    private boolean waitingForInput=false;
+    private boolean waitingForInput=true;
 
 
     @Override
@@ -102,6 +111,7 @@ public class GameActivity extends BaseActivity implements Runnable{
 
         //firebase
         mDatabaseRef= FirebaseDatabase.getInstance().getReference();
+        mDatabaseRoom=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/");
         mDatabasePlayers = FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("players");
         mDatabaseTurn=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("turn");
         mDatabaseDeck=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("deck");
@@ -109,10 +119,8 @@ public class GameActivity extends BaseActivity implements Runnable{
 
         //create objects
         mPlayers=new ArrayList<>();
-        mPlayersCards=new HashMap<>();
 
-        //get players from db
-        setPlayersForGame();
+
 
 
         //views
@@ -181,6 +189,7 @@ public class GameActivity extends BaseActivity implements Runnable{
                          }
                      });
 
+
                      // start game
 
                      startGame();
@@ -243,12 +252,18 @@ public class GameActivity extends BaseActivity implements Runnable{
             }
         });
 
+        //create players positions
+
+        mCardPostions=new CardsPositions(playersNumber);
 
         //start thread
 
         startThread();
-    }
 
+        //get players from db
+        setPlayersForGame();
+
+    }
 
 
     /**
@@ -397,11 +412,20 @@ public class GameActivity extends BaseActivity implements Runnable{
                     //        "child added",
                   ////          Toast.LENGTH_SHORT).show();
 
+
+
+
                     for(Player p: mPlayers)
                     {
                         if(p.uid.contains(currTurn.toString()) && !p.name.equals("Dealer"))
                             mCurrPlayer=p;
                     }
+
+                    if(getPeekForNextPlayer()==null)
+                    {
+                        removeTurnBetEventListener();
+                    }
+                    //clear view
                     mContext.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -437,14 +461,20 @@ public class GameActivity extends BaseActivity implements Runnable{
                 } else {
 
 
+
                     Toast.makeText(getApplicationContext(),
-                            "child changed",
+                            "child changed : ListenerForTurn",
                             Toast.LENGTH_SHORT).show();
                         //get player
                     for(Player p: mPlayers)
                     {
                         if(p.uid.contains(currTurn.toString()))
                             mCurrPlayer=p;
+                    }
+
+                    if(getPeekForNextPlayer()==null)
+                    {
+                        removeTurnBetEventListener();
                     }
 
                     mContext.runOnUiThread(new Runnable() {
@@ -493,11 +523,8 @@ public class GameActivity extends BaseActivity implements Runnable{
      * Game Methods
      */
 
-    private void startGame()
-    {
+    private void startGame() {
 
-        //remove listener
-        removeTurnBetEventListener();
 
         //
         Toast.makeText(getApplicationContext(),
@@ -514,158 +541,25 @@ public class GameActivity extends BaseActivity implements Runnable{
     }
 
 
-
-    private void setCardDealingEventListener()
-    {
-        cardDealingEventListener = new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
-
-                Object currTurn=dataSnapshot.getValue();
-
-                //only dealer
-                // [START_EXCLUDE]
-                if (currTurn == null) {
-                    // User is null, error out
-                    Log.e(TAG, "curr turn Player is unexpectedly null");
-                    Toast.makeText(getApplicationContext(),
-                            "Error: could not fetch urr turn Player.",
-                            Toast.LENGTH_SHORT).show();
-                }
-                else{
-                    Toast.makeText(getApplicationContext(),
-                            "child added: card Dealing",
-                            Toast.LENGTH_SHORT).show();
-
-                    for(Player p: mPlayers)
-                    {
-                        if(p.uid.contains(currTurn.toString()))
-                            mCurrPlayer=p;
-                    }
-
-
-                    if(mCurrPlayer.name.equals("Dealer"))
-                    {
-                        //create deck
-                        createDeckInDB();
-
-                        //create cards
-                        mCards=new ArrayList<>();
-
-                        //getting deck from db
-                        setEventListenerForDeck();
-                    }
-
-
-                }
-
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
-                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
-
-                Toast.makeText(getApplicationContext(),
-                        "child changed: card Dealing",
-                        Toast.LENGTH_SHORT).show();
-                //every player turn
-                //Todo get deck
-                //Todo get players-card && update score in each player and his hand
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
-                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                Log.w(TAG, "Players:onCancelled", databaseError.toException());
-                Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
-            }
-        };
-        mDatabaseTurn.addChildEventListener(cardDealingEventListener);
+    private void clearPlayersHand() {
+        for(Player p:mPlayers)
+        {
+            if (p.getHand()!=null)
+                 p.getHand().clear();
+        }
     }
 
-    private void setEventListenerForDeck() {
+    private void startDealing() {
 
-        deckEventListener = new ChildEventListener() {
+        this.runOnUiThread(new Runnable() {
             @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+            public void run() {
 
-
-                    String cardKey=dataSnapshot.getKey();
-                   Object cardValue=dataSnapshot.getValue();
- /*
-                   Toast.makeText(getApplicationContext(),
-                        "lis deck  key:"+ cardKey+" value :"+cardValue,
-                       Toast.LENGTH_SHORT).show();
-*/
-
-                // [START_EXCLUDE]
-                if (cardValue == null || cardKey==null) {
-                    // User is null, error out
-                    Log.e(TAG, "card unexpectedly null");
-                    Toast.makeText(getApplicationContext(),
-                            "Error: could not fetch card.",
-                            Toast.LENGTH_SHORT).show();
-                }
-
-                else{
-                    Card card=new Card(cardKey,Integer.parseInt(cardValue.toString()));
-
-                      mCards.add(card);
-
-                    //all cards are excepted from the server
-                    if(mCards.size()==NumOfCards)
-                    {
-                        //remove listener
-                        removeDeckEventListener();
-                        //create deck
-                        mDeck=new Deck(mCards,NumOfCards);
-
-                        //start deal cards to dealer
-                        startDealerDealing();
-                    }
-
-                }
-
-
+                mTurnText.setText("Waiting for dealer.. ");
+                mBetLayout.setVisibility(View.INVISIBLE);
+                mGameLayout.setVisibility(View.INVISIBLE);
             }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
-                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
-                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                Log.w(TAG, "Players:onCancelled", databaseError.toException());
-                Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
-            }
-        };
-        mDatabaseDeck.addChildEventListener(deckEventListener);
-    }
-
-    private void startDealerDealing() {
-
+        });
         //add card
         //get 2 cards
         Card c1=mDeck.deal();
@@ -675,6 +569,8 @@ public class GameActivity extends BaseActivity implements Runnable{
 
         //update score
         mCurrPlayer.updateScore();
+
+       // waitingForInput=true;
         mDatabasePlayers.child(mCurrPlayer.uid).child("score").setValue(mCurrPlayer.score);
 
         //remove Cards from Deck in DB
@@ -689,7 +585,16 @@ public class GameActivity extends BaseActivity implements Runnable{
         mDatabaseRef.updateChildren(childUpdates);
 
         //next turn
-        mDatabaseTurn.child("uid").setValue(getNextPlayer());
+        String nextUid=getNextPlayer();
+        if (nextUid!=null)
+           mDatabaseTurn.child("uid").setValue(nextUid);
+        else
+        {
+            Toast.makeText(getApplicationContext(),
+                    " Start Playing",
+                    Toast.LENGTH_SHORT).show();
+        }
+
 
     }
 
@@ -749,6 +654,26 @@ public class GameActivity extends BaseActivity implements Runnable{
 
     }
 
+    private String getPeekForNextPlayer() {
+        int index=0;
+        for(Player p: mPlayers)
+        {
+            if (mCurrPlayer== null)
+                 continue;
+
+            if(p.uid.contains(mCurrPlayer.uid))
+                index= mPlayers.indexOf(p);
+        }
+
+        index++;
+
+        if (index>=mPlayers.size())
+            return null;
+
+        return mPlayers.get(index).uid;
+    }
+
+
     private Player getPlayerObjectByUid(String uid) {
         for(Player p:mPlayers)
         {
@@ -758,10 +683,535 @@ public class GameActivity extends BaseActivity implements Runnable{
         return null;
     }
 
+    private void updatePlayersScore() {
+        for(Player p:mPlayers)
+        {
+            p.updateScore();
+        }
+    }
+
+    /**
+     * Event Listeners
+     */
+    private void setEventListenerForDeck() {
+
+        deckEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+
+
+                String cardKey=dataSnapshot.getKey();
+                Object cardValue=dataSnapshot.getValue();
+ /*
+                   Toast.makeText(getApplicationContext(),
+                        "lis deck  key:"+ cardKey+" value :"+cardValue,
+                       Toast.LENGTH_SHORT).show();
+*/
+
+                // [START_EXCLUDE]
+                if (cardValue == null || cardKey==null) {
+                    // User is null, error out
+                    Log.e(TAG, "card unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch card.",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+                else{
+                    Card card=new Card(cardKey,Integer.parseInt(cardValue.toString()));
+
+                    mCards.add(card);
+
+                    //all cards are excepted from the server
+                    if(mCards.size()==NumOfCards)
+                    {
+                        //remove listener
+                        removeDeckEventListener();
+                        //create deck
+                        mDeck=new Deck(mCards,NumOfCards);
+
+                        //start deal cards to dealer
+                        startDealing();
+                    }
+
+                }
+
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabaseDeck.addChildEventListener(deckEventListener);
+    }
+
+    private void setCardDealingEventListener() {
+        cardDealingEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+
+                Object currTurn=dataSnapshot.getValue();
+
+                //only dealer
+                // [START_EXCLUDE]
+                if (currTurn == null) {
+                    // User is null, error out
+                    Log.e(TAG, "curr turn Player is unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch urr turn Player.",
+                            Toast.LENGTH_SHORT).show();
+                }
+                else{
+                    Toast.makeText(getApplicationContext(),
+                            "child added: card Dealing",
+                            Toast.LENGTH_SHORT).show();
+
+                    for(Player p: mPlayers)
+                    {
+                        if(p.uid.contains(currTurn.toString()))
+                            mCurrPlayer=p;
+                    }
+
+
+                    if(mCurrPlayer.name.equals("Dealer"))
+                    {
+                        //create deck
+                        createDeckInDB();
+
+                        //create cards
+                        mCards=new ArrayList<>();
+
+                        //getting deck from db
+                        setEventListenerForDeck();
+                    }
+
+
+                }
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+                Toast.makeText(getApplicationContext(),
+                        "child changed: card setCardDealingEventListener",
+                        Toast.LENGTH_SHORT).show();
+
+                Object currTurn=dataSnapshot.getValue();
+
+
+                // [START_EXCLUDE]
+                if (currTurn == null) {
+                    // User is null, error out
+                    Log.e(TAG, "curr turn Player is unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch urr turn Player.",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+
+
+                    //get player
+                    for (Player p : mPlayers) {
+                        if (p.uid.contains(currTurn.toString()))
+                            mCurrPlayer = p;
+                    }
+
+                    if(getUid().equals(mCurrPlayer.uid))
+                    {
+                        //every player turn
+
+
+                        mContext.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+
+                                mTurnText.setText("Waiting for dealer.. ");
+                                mBetLayout.setVisibility(View.INVISIBLE);
+                                mGameLayout.setVisibility(View.INVISIBLE);
+                            }
+                        });
+
+                        getNumberOfPlayersHandFromDB();
+                    }
+                }
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabaseTurn.addChildEventListener(cardDealingEventListener);
+    }
+
+    private void getNumberOfPlayersHandFromDB() {
+        roomEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+                String childKey=dataSnapshot.getKey();
+
+
+                if(childKey==null)
+                {
+                    Toast.makeText(getApplicationContext(),
+                            "no players-cards key",
+                            Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+                    if (childKey.equals("players-cards"))
+                    {
+                        Toast.makeText(getApplicationContext(),
+                                "players-cards key fetched",
+                                Toast.LENGTH_SHORT).show();
+                        currNumberOfPlayersHand=dataSnapshot.getChildrenCount();
+                        removeRoomEventListener();
+
+                        getNumberOfCardsInDeckFromDB();
+                    }
+
+                }
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        };
+
+        mDatabaseRoom.addChildEventListener(roomEventListener);
+    }
+
+    private void getNumberOfCardsInDeckFromDB() {
+        roomEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+                String childKey=dataSnapshot.getKey();
+
+                if(childKey==null)
+                {
+                    Toast.makeText(getApplicationContext(),
+                            "no deck key",
+                            Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+                    if (childKey.equals("players-cards"))
+                    {
+                        currNumberOfPlayersHand=dataSnapshot.getChildrenCount();
+                    }
+
+                    if (childKey.equals("deck"))
+                    {
+                        currNumberOfCards=dataSnapshot.getChildrenCount();
+                        Toast.makeText(getApplicationContext(),
+                                "numOf Cards:"+currNumberOfCards,
+                                Toast.LENGTH_SHORT).show();
+
+                        removeRoomEventListener();
+
+                        mCards=new ArrayList<>();
+                        //call
+                        setEventForDeckDealing();
+                    }
+                }
+
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        };
+
+        mDatabaseRoom.addChildEventListener(roomEventListener);
+    }
+
+    private void setEventForDeckDealing() {
+        deckEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+
+
+                String cardKey=dataSnapshot.getKey();
+                Object cardValue=dataSnapshot.getValue();
+
+
+                // [START_EXCLUDE]
+                if (cardValue == null || cardKey==null) {
+                    // User is null, error out
+                    Log.e(TAG, "card unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch card.",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+                else{
+                    Card card=new Card(cardKey,Integer.parseInt(cardValue.toString()));
+
+                    mCards.add(card);
+
+                    //all cards are excepted from the server
+                    if(mCards.size()==currNumberOfCards)
+                    {
+                        Toast.makeText(getApplicationContext(),
+                                "Curr Cards Size :Download the new Cards"+mCards.size(),
+                                Toast.LENGTH_SHORT).show();
+
+                        //remove listener
+                        removeDeckEventListener();
+                        //create deck
+                        mDeck=new Deck(mCards,(int)currNumberOfCards);
+
+                        nPlayers=0;
+                        clearPlayersHand();
+                        setEventForPlayersCards();
+
+                    }
+
+                }
+
+
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "Players:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabaseDeck.addChildEventListener(deckEventListener);
+    }
+
+    private void setEventForPlayersCards() {
+
+        playersCardsEventListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+
+
+                final String playerKey=dataSnapshot.getKey();
+                numOfHand=dataSnapshot.getChildrenCount();
+                nPlayers++;
+
+                Toast.makeText(getApplicationContext(),
+                        "onChildAdded: Players Cards " +playerKey,
+                        Toast.LENGTH_SHORT).show();
+
+                // [START_EXCLUDE]
+                if (playerKey == null) {
+                    // User is null, error out
+                    Log.e(TAG, "player unexpectedly null");
+                    Toast.makeText(getApplicationContext(),
+                            "Error: could not fetch player.",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+                else{
+                    //fatching player hand
+
+                    playersCardsHandEventListener  =new ChildEventListener() {
+                        @Override
+                        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+                            String cardKey = dataSnapshot.getKey();
+                            Object cardValue = dataSnapshot.getValue();
+
+                            Toast.makeText(getApplicationContext(),
+                                    "onChildAdded: Players Hand - fetching hand",
+                                    Toast.LENGTH_SHORT).show();
+
+                            // [START_EXCLUDE]
+                            if (cardValue == null || cardKey == null) {
+                                // User is null, error out
+                                Log.e(TAG, "card unexpectedly null");
+                                Toast.makeText(getApplicationContext(),
+                                        "Error: could not fetch card.",
+                                        Toast.LENGTH_SHORT).show();
+                            } else {
+                                Card card = new Card(cardKey, Integer.parseInt(cardValue.toString()));
+
+                                Player p=getPlayerObjectByUid(playerKey);
+                                p.addCard(card);
+
+                                Toast.makeText(getApplicationContext(),
+                                        "num players hand"+currNumberOfPlayersHand,
+                                        Toast.LENGTH_SHORT).show();
+
+                                //finish loading players cards
+                                if (p.getHand().size() == numOfHand) {
+
+
+                                    //remove listener per player
+                                    mDatabasePlayersCards.child(playerKey);
+
+
+                                    if(nPlayers==currNumberOfPlayersHand)
+                                    {
+
+                                        Toast.makeText(getApplicationContext(),
+                                                " finish load Players Hand",
+                                                Toast.LENGTH_SHORT).show();
+
+
+                                        //removes listener
+                                        removePlayersCardsEventListener();
+
+                                        //update score and deal
+                                        updatePlayersScore();
+
+                                        //update canvas
+                                        waitingForInput=false;
+
+                                        //start deal cards to dealer
+                                        startDealing();
+                                    }
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+                        }
+                        @Override
+                        public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+                        }
+                        @Override
+                        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+                        }
+                        @Override
+                        public void onCancelled(DatabaseError databaseError) {
+                        }
+                    };
+                    mDatabasePlayersCards.child(playerKey).addChildEventListener(playersCardsHandEventListener);
+
+
+                }
+            }
+
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
+
+            }
+
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
+                Log.d(TAG, "onChildRemoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String previousChildName) {
+                Log.d(TAG, "onChildMoved:" + dataSnapshot.getKey());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "PlayersCards:onCancelled", databaseError.toException());
+                Toast.makeText(getApplicationContext(), "Failed to PlayersCards", Toast.LENGTH_SHORT).show();
+            }
+        };
+        mDatabasePlayersCards.addChildEventListener(playersCardsEventListener);
+    }
 
     /**
      * Remove Listeners
      */
+
+    private void removeRoomEventListener() {
+        if (roomEventListener!=null)
+            mDatabaseRoom.removeEventListener(roomEventListener);
+    }
+
+    private void removePlayersCardsEventListener() {
+        if (playersCardsEventListener!=null)
+            mDatabasePlayersCards.removeEventListener(playersCardsEventListener);
+    }
 
     private void removeCardDealingEventListener() {
         if (cardDealingEventListener!=null)
@@ -821,108 +1271,151 @@ public class GameActivity extends BaseActivity implements Runnable{
 
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        pause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resume();
+    }
+
+
+    private void pause() {
+        //CLOSE LOCKER FOR run();
+        locker = false;
+        while(true){
+            try {
+                //WAIT UNTIL THREAD DIE, THEN EXIT WHILE LOOP AND RELEASE a thread
+                thread.join();
+            } catch (InterruptedException e) {e.printStackTrace();
+            }
+            break;
+        }
+
+        thread = null;
+    }
+
+    private void resume() {
+        //RESTART THREAD AND OPEN LOCKER FOR run();
+        locker = true;
+       // thread = new Thread(this);
+
+       // thread.start();
+        waitingForInput = false;
+    }
+
     /**
      * Runnable imp.
      */
 
+
+
     private void startThread() {
         //place holder
+        locker=true;
         holder = surface.getHolder();
         //start thread
-        thread = new Thread(this);
+        thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(locker) {
+                    //checks if the lockCanvas() method will be success,and if not, will check this statement again
+                    if (!holder.getSurface().isValid())
+                        continue;
+
+                    if(waitingForInput)
+                        continue;
+
+                    Canvas canvas = holder.lockCanvas();
+                    draw(canvas);
+                    holder.unlockCanvasAndPost(canvas);
+                    waitingForInput = true;
+                }
+            }
+        });
         thread.start();
-    }
-
-    @Override
-    public void run() {
-
-        while(locker) {
-            //checks if the lockCanvas() method will be success,and if not, will check this statement again
-            if (!holder.getSurface().isValid())
-                continue;
-
-            if(waitingForInput)
-                continue;
-
-            Canvas canvas = holder.lockCanvas();
-            draw(canvas);
-            holder.unlockCanvasAndPost(canvas);
-            waitingForInput = true;
-        }
-
     }
 
 
     private void draw(Canvas canvas) {
 
-        /*
-        canvas.drawColor(Color.rgb(0, 135, 0));
-        int playerPlace=4;
-        for( int i=0; i<game.getPlayers().size(); i++ )
+
+        float offset =CardsPositions.cardOffset;
+      //  canvas.drawColor(Color.rgb(0, 135, 0));
+        int dealerFlipped=0;
+
+        //Pass over all players
+        for(Player p: mPlayers)
         {
-            ArrayList<Card> hand = game.getPlayers().get(i).getHand();
+            ArrayList<Card> hand = p.getHand();
 
             Paint paint = new Paint();
             paint.setColor(Color.WHITE);
             paint.setTextSize(50);
 
+            float posX=mCardPostions.getPlayerPositionByTurn((int)(p.turn)).getX();
+           float posY=mCardPostions.getPlayerPositionByTurn((int)(p.turn)).getY();
+
             //get score
-            int score = game.score(game.getPlayers().get(i));
+            int score = p.score;
 
-
-
-            if (i<1)
+            if (p.name.equals("dealer"))
             {//Dealer
-                canvas.drawText(game.getPlayers().get(i).getName() + ": " +  score, 20, 100 + i * 400, paint);
-                // canvas.drawText("Bet: " + game.getPlayers().get(i).getChips(), 1200, 100 + i * 400, paint);
+                canvas.drawText(p.name + ": " +  score,posX-CardsPositions.nameOffset , posY, paint);
 
-                if(game.getPlayers().get(i).equals(game.getCurrentPlayer())) {
-                    canvas.drawBitmap(mArrowTurn, 20, 150 + i * 400, null);
-                }
-
+                /*
                 if(score > 21) {
                     canvas.drawText("BUST", 20, 300 + i * 400, paint);
                 }
+                 */
             }
             else//Player
             {
-                canvas.drawText(game.getPlayers().get(i).getName() + ": " +  score, 20, 100 + i*(playerPlace-1) * 400, paint);
-                // canvas.drawText("Bet: " + game.getPlayers().get(i).getChips(), 1200, 100 + i *(playerPlace-1)* 400, paint);
+                canvas.drawText(p.name + ": " +  score, posX-CardsPositions.nameOffset , posY, paint);
 
-                if(game.getPlayers().get(i).equals(game.getCurrentPlayer())) {
-                    canvas.drawBitmap(mArrowTurn, 20, 150 + i *(playerPlace-1)* 400, null);
-                }
-
+              /*
                 if(score > 21) {
                     canvas.drawText("BUST", 20, 300 + i *(playerPlace-1)* 400, paint);
                 }
+                */
             }
 
+            int handIndex=0;
 
-            // canvas.drawText("Count: " + game.cardCounting, 800, 100, paint);
-
-
-
-            for( int j=0; j < hand.size(); j++ )
+            //pass over hand player
+            for(Card c: hand)
             {
-                Card c = hand.get(j);
 
-
-                if( i == 0 && j == 0 && game.isHoleFlipped)
+                if(p.name.equals("dealer"))
                 {
-                    canvas.drawBitmap(mCardBack, 520 + j * 50, 200 + i * 400, null );
-                }
-                else
-                {
+                    if(dealerFlipped>0)
+                        isCardFlipped=true;
 
-                    if (i<1)
-                        canvas.drawBitmap(cardImages[c.getCardIndex()], 520 + j * 50, 200 + i * 400, null );
-                    else
-                        canvas.drawBitmap(cardImages[c.getCardIndex()], 520 + j * 50, 100 + i *playerPlace* 300, null );
+                    if (isCardFlipped)
+                    {
+                        canvas.drawBitmap(mCardBack, posX, posY, null );
+                        dealerFlipped++;
+                        isCardFlipped=false;
+                    }
+                   else
+                    {
+                        canvas.drawBitmap(cardImages[c.getCardIndex()], posX+handIndex*offset,posY, null );
+                    }
+
                 }
-            }
-        }
-        */
+                else//player
+                {
+                   canvas.drawBitmap(cardImages[c.getCardIndex()],  posX+handIndex*offset, posY, null );
+                }
+
+                handIndex++;
+            }//end hand
+        }//end players
+
     }
 
 }
