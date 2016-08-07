@@ -163,7 +163,7 @@ public class WaitingRoomActivity extends BaseActivity {
                     Turn turn =new Turn(room.uid);
                     Map<String, Object> TurnValues = turn.toMap();
                     Map<String, Object> childUpdates = new HashMap<>();
-                    childUpdates.put("/game/" + mRoomNameKey + "/turn/",TurnValues);
+                    childUpdates.put("/game/" + mRoomNameKey + "/turn-bet/",TurnValues);
                     mDatabaseGame.updateChildren(childUpdates);
                   //
                     createGameDB();

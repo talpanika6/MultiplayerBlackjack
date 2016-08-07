@@ -41,9 +41,10 @@ import project.blackjack.Models.Card;
 import project.blackjack.Models.CardsPositions;
 import project.blackjack.Models.Deck;
 import project.blackjack.Models.Player;
+import project.blackjack.Models.Turn;
 
 
-public class GameActivity extends BaseActivity{
+public class GameActivity extends BaseActivity implements  Runnable{
 
     private static final String TAG = "GameActivity";
     private int NumOfCards=52;
@@ -52,7 +53,7 @@ public class GameActivity extends BaseActivity{
 
     //firebase
     private ChildEventListener roomEventListener,playersEventListener,turnBetEventListener,deckEventListener,cardDealingEventListener,playersCardsEventListener,playersCardsHandEventListener;
-    private DatabaseReference mDatabaseRef,mDatabaseRoom,mDatabasePlayers,mDatabaseTurn,mDatabaseDeck,mDatabasePlayersCards;
+    private DatabaseReference mDatabaseRef,mDatabaseRoom,mDatabasePlayers,mDatabaseTurnBet,mDatabaseTurnDeal,mDatabaseDeck,mDatabasePlayersCards;
 
     //objects
     private BaseActivity mContext;
@@ -124,7 +125,8 @@ public class GameActivity extends BaseActivity{
         mDatabaseRef= FirebaseDatabase.getInstance().getReference();
         mDatabaseRoom=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/");
         mDatabasePlayers = FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("players");
-        mDatabaseTurn=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("turn");
+        mDatabaseTurnBet=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("turn-bet");
+        mDatabaseTurnDeal=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("turn-deal");
         mDatabaseDeck=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("deck");
         mDatabasePlayersCards=FirebaseDatabase.getInstance().getReference().child("/game/").child("/"+mRoomName+"/").child("players-cards");
 
@@ -212,7 +214,7 @@ public class GameActivity extends BaseActivity{
                          //if dealer pass him
                          nextUid = getNextPlayer();
                      }
-                     mDatabaseTurn.child("uid").setValue(nextUid);
+                     mDatabaseTurnBet.child("uid").setValue(nextUid);
                  }
 
             }
@@ -386,6 +388,8 @@ public class GameActivity extends BaseActivity{
             }
         });
 
+        //listen to turn deal
+        setCardDealingEventListener();
 
     }
 
@@ -520,7 +524,7 @@ public class GameActivity extends BaseActivity{
                 Toast.makeText(getApplicationContext(), "Failed to load players.", Toast.LENGTH_SHORT).show();
             }
         };
-        mDatabaseTurn.addChildEventListener(turnBetEventListener);
+        mDatabaseTurnBet.addChildEventListener(turnBetEventListener);
 
     }
 
@@ -536,18 +540,22 @@ public class GameActivity extends BaseActivity{
 
     private void startGame() {
 
-
-        //
         Toast.makeText(getApplicationContext(),
                 "betting is over,  starting game ...",
                 Toast.LENGTH_SHORT).show();
 
         //set next turn
         //owner / dealer same
-        mDatabaseTurn.child("uid").setValue(mPlayers.get(0).uid);
+        Turn turn =new Turn(mPlayers.get(0).uid);
+        Map<String, Object> TurnValues = turn.toMap();
+        Map<String, Object> childUpdates = new HashMap<>();
+        childUpdates.put("/game/" + mRoomName + "/turn-deal/",TurnValues);
+        mDatabaseRef.updateChildren(childUpdates);
 
+
+        ///move to
         // deal cards by turns
-        setCardDealingEventListener();
+       // setCardDealingEventListener();
 
     }
 
@@ -598,7 +606,7 @@ public class GameActivity extends BaseActivity{
         //next turn
         String nextUid=getNextPlayer();
         if (nextUid!=null)
-           mDatabaseTurn.child("uid").setValue(nextUid);
+           mDatabaseTurnDeal.child("uid").setValue(nextUid);
         else
         {
             Toast.makeText(getApplicationContext(),
@@ -610,7 +618,7 @@ public class GameActivity extends BaseActivity{
                 @Override
                 public void run() {
 
-                    mTurnText.setText("Your Turn");
+                    mTurnText.setText("You Lose");
                     mGameLayout.setVisibility(View.VISIBLE);
                 }
             });
@@ -877,8 +885,9 @@ public class GameActivity extends BaseActivity{
                             }
                         });
 
-                        getNumberOfPlayersHandFromDB();
+
                     }
+                    getNumberOfPlayersHandFromDB();
                 }
 
             }
@@ -899,7 +908,7 @@ public class GameActivity extends BaseActivity{
                 Toast.makeText(getApplicationContext(), "Failed to load Cards.", Toast.LENGTH_SHORT).show();
             }
         };
-        mDatabaseTurn.addChildEventListener(cardDealingEventListener);
+        mDatabaseTurnDeal.addChildEventListener(cardDealingEventListener);
     }
 
     private void getNumberOfPlayersHandFromDB() {
@@ -1241,7 +1250,7 @@ public class GameActivity extends BaseActivity{
 
     private void removeCardDealingEventListener() {
         if (cardDealingEventListener!=null)
-            mDatabaseDeck.removeEventListener(cardDealingEventListener);
+            mDatabaseTurnDeal.removeEventListener(cardDealingEventListener);
     }
 
     private void removeDeckEventListener() {
@@ -1251,7 +1260,7 @@ public class GameActivity extends BaseActivity{
 
     private void removeTurnBetEventListener() {
         if (turnBetEventListener!=null)
-            mDatabaseTurn.removeEventListener(turnBetEventListener);
+            mDatabaseTurnBet.removeEventListener(turnBetEventListener);
     }
 
     private void removePlayersEventListener() {
@@ -1266,6 +1275,7 @@ public class GameActivity extends BaseActivity{
     public void onStop() {
         super.onStop();
 
+        removeRoomEventListener();
         removeCardDealingEventListener();
         removePlayersEventListener();
         removeTurnBetEventListener();
@@ -1328,9 +1338,9 @@ public class GameActivity extends BaseActivity{
     private void resume() {
         //RESTART THREAD AND OPEN LOCKER FOR run();
         locker = true;
-       // thread = new Thread(this);
+        thread = new Thread(this);
 
-       // thread.start();
+        thread.start();
         waitingForInput = false;
     }
 
@@ -1345,26 +1355,27 @@ public class GameActivity extends BaseActivity{
         locker=true;
         holder = surface.getHolder();
         //start thread
-        thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(locker) {
-                    //checks if the lockCanvas() method will be success,and if not, will check this statement again
-                    if (!holder.getSurface().isValid())
-                        continue;
-
-                    if(waitingForInput)
-                        continue;
-
-                    Canvas canvas = holder.lockCanvas();
-                    draw(canvas);
-                    holder.unlockCanvasAndPost(canvas);
-                    waitingForInput = true;
-                }
-            }
-        });
+        thread = new Thread(this);
         thread.start();
     }
+
+    @Override
+    public void run() {
+
+            while(locker) {
+                //checks if the lockCanvas() method will be success,and if not, will check this statement again
+                if (!holder.getSurface().isValid())
+                    continue;
+
+                if(waitingForInput)
+                    continue;
+
+                Canvas canvas = holder.lockCanvas();
+                draw(canvas);
+                holder.unlockCanvasAndPost(canvas);
+                waitingForInput = true;
+            }
+        }
 
 
     private void draw(Canvas canvas) {
@@ -1384,6 +1395,8 @@ public class GameActivity extends BaseActivity{
         for(Player p: mPlayers)
         {
             ArrayList<Card> hand = p.getHand();
+
+
 
             Paint paint = new Paint();
             paint.setColor(Color.WHITE);
@@ -1418,6 +1431,9 @@ public class GameActivity extends BaseActivity{
 
             int handIndex=0;
 
+            if (hand==null)
+                continue;
+
             //pass over hand player
             for(Card c: hand)
             {
@@ -1449,5 +1465,6 @@ public class GameActivity extends BaseActivity{
         }//end players
 
     }
+
 
 }

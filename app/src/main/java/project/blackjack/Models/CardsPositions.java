@@ -40,7 +40,7 @@ public class CardsPositions {
                 break;
 
             case 2:
-                  pos =new Position (1600,700);
+                  pos =new Position (1400,800);
                 break;
 
             case 3:
