@@ -114,7 +114,7 @@ public class GameActivity extends BaseActivity implements  Runnable{
         // Get room & players numbers from intent
         playersNumber=getIntent().getIntExtra(WaitingRoomActivity.EXTRA_PLAYER_NUMBER_KEY,0);
 
-        Toast.makeText(getApplicationContext(), playersNumber+" ", Toast.LENGTH_SHORT).show();
+       // Toast.makeText(getApplicationContext(), playersNumber+" ", Toast.LENGTH_SHORT).show();
 
         mRoomName=getIntent().getStringExtra(WaitingRoomActivity.EXTRA_ROOM_KEY);
         if (  mRoomName==null) {
@@ -618,7 +618,7 @@ public class GameActivity extends BaseActivity implements  Runnable{
                 @Override
                 public void run() {
 
-                    mTurnText.setText("You Lose");
+                    mTurnText.setText("You Turn");
                     mGameLayout.setVisibility(View.VISIBLE);
                 }
             });
@@ -815,9 +815,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                             Toast.LENGTH_SHORT).show();
                 }
                 else{
-                    Toast.makeText(getApplicationContext(),
-                            "child added: card Dealing",
-                            Toast.LENGTH_SHORT).show();
+                //    Toast.makeText(getApplicationContext(),
+                ///            "child added: card Dealing",
+                //            Toast.LENGTH_SHORT).show();
 
                     for(Player p: mPlayers)
                     {
@@ -847,9 +847,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
             public void onChildChanged(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d(TAG, "onChildChanged:" + dataSnapshot.getKey());
 
-                Toast.makeText(getApplicationContext(),
-                        "child changed: card setCardDealingEventListener",
-                        Toast.LENGTH_SHORT).show();
+            //    Toast.makeText(getApplicationContext(),
+               //         "child changed: card setCardDealingEventListener",
+               //         Toast.LENGTH_SHORT).show();
 
                 Object currTurn=dataSnapshot.getValue();
 
@@ -929,9 +929,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                 {
                     if (childKey.equals("players-cards"))
                     {
-                        Toast.makeText(getApplicationContext(),
-                                "players-cards key fetched",
-                                Toast.LENGTH_SHORT).show();
+                      //  Toast.makeText(getApplicationContext(),
+                        //        "players-cards key fetched",
+                          //      Toast.LENGTH_SHORT).show();
                         currNumberOfPlayersHand=dataSnapshot.getChildrenCount();
                         removeRoomEventListener();
 
@@ -989,9 +989,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                     if (childKey.equals("deck"))
                     {
                         currNumberOfCards=dataSnapshot.getChildrenCount();
-                        Toast.makeText(getApplicationContext(),
-                                "numOf Cards:"+currNumberOfCards,
-                                Toast.LENGTH_SHORT).show();
+                      //  Toast.makeText(getApplicationContext(),
+                       //         "numOf Cards:"+currNumberOfCards,
+                       //         Toast.LENGTH_SHORT).show();
 
                         removeRoomEventListener();
 
@@ -1055,9 +1055,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                     //all cards are excepted from the server
                     if(mCards.size()==currNumberOfCards)
                     {
-                        Toast.makeText(getApplicationContext(),
-                                "Curr Cards Size :Download the new Cards"+mCards.size(),
-                                Toast.LENGTH_SHORT).show();
+                    //    Toast.makeText(getApplicationContext(),
+                    //            "Curr Cards Size :Download the new Cards"+mCards.size(),
+                   //             Toast.LENGTH_SHORT).show();
 
                         //remove listener
                         removeDeckEventListener();
@@ -1111,9 +1111,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                 numOfHand=dataSnapshot.getChildrenCount();
                 nPlayers++;
 
-                Toast.makeText(getApplicationContext(),
-                        "onChildAdded: Players Cards " +playerKey,
-                        Toast.LENGTH_SHORT).show();
+          //      Toast.makeText(getApplicationContext(),
+             //           "onChildAdded: Players Cards " +playerKey,
+            //            Toast.LENGTH_SHORT).show();
 
                 // [START_EXCLUDE]
                 if (playerKey == null) {
@@ -1134,9 +1134,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                             String cardKey = dataSnapshot.getKey();
                             Object cardValue = dataSnapshot.getValue();
 
-                            Toast.makeText(getApplicationContext(),
-                                    "onChildAdded: Players Hand - fetching hand",
-                                    Toast.LENGTH_SHORT).show();
+                     //       Toast.makeText(getApplicationContext(),
+                     //               "onChildAdded: Players Hand - fetching hand",
+                     //               Toast.LENGTH_SHORT).show();
 
                             // [START_EXCLUDE]
                             if (cardValue == null || cardKey == null) {
@@ -1151,9 +1151,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                                 Player p=getPlayerObjectByUid(playerKey);
                                 p.addCard(card);
 
-                                Toast.makeText(getApplicationContext(),
-                                        "num players hand"+currNumberOfPlayersHand,
-                                        Toast.LENGTH_SHORT).show();
+                            //    Toast.makeText(getApplicationContext(),
+                            //            "num players hand"+currNumberOfPlayersHand,
+                            //            Toast.LENGTH_SHORT).show();
 
                                 //finish loading players cards
                                 if (p.getHand().size() == numOfHand) {
@@ -1166,9 +1166,9 @@ public class GameActivity extends BaseActivity implements  Runnable{
                                     if(nPlayers==currNumberOfPlayersHand)
                                     {
 
-                                        Toast.makeText(getApplicationContext(),
-                                                " finish load Players Hand",
-                                                Toast.LENGTH_SHORT).show();
+                                     //   Toast.makeText(getApplicationContext(),
+                                     //           " finish load Players Hand",
+                                    //            Toast.LENGTH_SHORT).show();
 
 
                                         //removes listener
